@@ -42,9 +42,9 @@ const AI_CONFIG = {
 
 // Business Profile (from business.json)
 const BUSINESS_PROFILE = {
-  name: 'Refund',
+  name: 'Returns Trade Agent',
   tone: 'friendly, professional, concise',
-  signoff: 'Kind regards,\nThe Refund Team',
+  signoff: 'Kind regards,\nThe Returns Trade Agent Team',
   currency: 'R',
   currency_code: 'ZAR',
   hours: {
@@ -64,7 +64,7 @@ const BUSINESS_PROFILE = {
   ],
   policies: {
     refund:
-      'A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the quantity is not more than you bought, and there is no other open return for that item.',
+      'A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the item is not food, the quantity is not more than you bought, and there is no other open return for that item.',
     db_returns_rule:
       'Database return rule: the order is delivered, delivery was no more than 14 days ago, the item was not bought on sale, and the quantity is not more than purchased.',
     delivery: 'Delivery takes 2-5 working days within Gauteng.',
@@ -486,7 +486,7 @@ function buildSeedOrdersAndItems() {
       created_at: new Date(now - 1000 * 60 * 45).toISOString(),
       updated_at: new Date(now - 1000 * 60 * 45).toISOString(),
     },
-    // 2. Order REF-2026-10479 (Status: Completed | Purchased 2 Days Ago — Within 7-Day Refund Policy)
+    // 2. Order REF-2026-10479 (Status: Completed | Purchased 2 Days Ago — Within the 14-day return window)
     {
       id: '00000000-0000-4000-8000-000000010479',
       order_number: 'REF-2026-10479',
@@ -505,7 +505,7 @@ function buildSeedOrdersAndItems() {
       created_at: new Date(now - 2 * dayMs).toISOString(),
       updated_at: new Date(now - 1 * dayMs).toISOString(),
     },
-    // 3. Order REF-2026-10315 (Status: Completed | Purchased 12 Days Ago — Outside 7-Day Refund Policy to test AI Decline & Appeal)
+    // 3. Order REF-2026-10315 (Status: Completed | Purchased 20 Days Ago — Outside the 14-day return window)
     {
       id: '00000000-0000-4000-8000-000000010315',
       order_number: 'REF-2026-10315',
@@ -974,7 +974,7 @@ const ReplyEngineJS = (() => {
 
   function _draft(intent, biz = BUSINESS_PROFILE, flagList = []) {
     const name = biz.name || 'Refund';
-    const sign = biz.signoff || `Kind regards,\nThe Refund Team`;
+    const sign = biz.signoff || `Kind regards,\nThe Returns Trade Agent Team`;
     const ct = biz.contact || {};
     const reach = `You can reach us on ${ct.phone || '+27 11 000 0000'} or ${ct.email || 'info@example.co.za'}.`;
 
@@ -1045,7 +1045,7 @@ const ReplyEngineJS = (() => {
 
   function getHumanEscalationReply(biz = BUSINESS_PROFILE) {
     const ct = biz.contact || {};
-    const sign = biz.signoff || 'Kind regards,\nThe Refund Team';
+    const sign = biz.signoff || 'Kind regards,\nThe Returns Trade Agent Team';
     return `Of course. A team member will be with you shortly. You can also call ${ct.phone || '+27 11 000 0000'} or WhatsApp ${ct.whatsapp || '+27 82 000 0000'}.\n\n${sign}`;
   }
 
@@ -1223,8 +1223,15 @@ async function fetchOrdersWithItems() {
  * Generates a unique Order ID (`REF-2026-XXXXX`) and saves the order + `order_items`
  * to Supabase (`public.orders`, `public.order_items`) and `localStorage`.
  */
+function dbItemCategory(item) {
+  const raw = String(item?.category || '').toLowerCase();
+  const sku = String(item?.sku || '');
+  if (raw === 'food' || sku.toUpperCase().startsWith('SKU-FOOD-')) return 'food';
+  return 'apparel';
+}
+
 async function createOrderWithItems({
-  shopName = 'Refund Sandton',
+  shopName = 'Returns Trade Agent',
   customerEmail,
   paymentMethod = 'Credit Card',
   shippingAddress = '123 Example Street, Sandton, Johannesburg',
@@ -1316,6 +1323,7 @@ async function createOrderWithItems({
             quantity: it.quantity,
             unit_price: it.unit_price,
             on_sale: it.on_sale,
+            category: dbItemCategory(it),
           }))
         );
       }

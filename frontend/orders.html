@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Refund — My Orders, AI Refund Adjudicator &amp; Manager Escalation</title>
+  <title>Returns Trade Agent — My orders</title>
   <!-- Inter Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,7 +21,7 @@
   <header class="site-header">
     <div class="header-inner">
       <!-- Left: Refund Logo & Brand Name -->
-      <a href="store.html" class="brand-link" aria-label="Refund Store">
+      <a href="store.html" class="brand-link" aria-label="Returns Trade Agent">
         <div class="app-logo" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3 10H16C18.7614 10 21 12.2386 21 15C21 17.7614 18.7614 20 16 20H11" stroke="white"
@@ -30,8 +30,8 @@
           </svg>
         </div>
         <div class="brand-text">
-          <span class="brand-name">Refund</span>
-          <span class="brand-tag">Order &amp; AI Refund Center</span>
+          <span class="brand-name">Returns Trade Agent</span>
+          <span class="brand-tag">Orders and returns</span>
         </div>
       </a>
 
@@ -80,22 +80,16 @@
     <!-- Page Header Card -->
     <section class="store-hero-card">
       <div class="hero-copy">
-        <div class="hero-eyebrow">
-          <span class="status-dot"></span>
-          <span>AI REFUND ADJUDICATOR &amp; HUMAN ESCALATION</span>
-        </div>
-        <h1 class="hero-title">My Orders &amp; AI Refund Assistant</h1>
+        <h1 class="hero-title">My orders</h1>
         <p class="hero-subtitle">
-          Look up any order by its unique ID (<code class="inline-code">REF-2026-10482</code>, <code class="inline-code">REF-2026-10479</code>, <code class="inline-code">REF-2026-10315</code>, <code class="inline-code">REF-2026-10450</code>), request an instant
-          AI-adjudicated refund under our 14-day delivery window, or escalate via <code class="inline-code">forward-contact-requests</code> to <code
-            class="inline-code">info@example.co.za</code>.
+          You can return a delivered item within 14 days. Sale items and food cannot be returned.
         </p>
         <div class="business-policy-strip">
-          <span>📍 123 Example Street, Sandton, JHB</span>
+          <span>Monday to Friday 08:00–17:00</span>
           <span>•</span>
-          <span>🕒 Mon-Fri 08:00-17:00 | Sat 09:00-13:00</span>
+          <span>Saturday 09:00–13:00</span>
           <span>•</span>
-          <span>📞 +27 11 000 0000</span>
+          <span>Sunday closed</span>
         </div>
       </div>
       <div class="hero-stats">
@@ -120,7 +114,7 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <input type="search" id="order-search-input" class="search-input"
-            placeholder="Search by Order ID (e.g., REF-2026-10482) or item name..."
+            placeholder="Search by order number (DEMO-1001) or item name..."
             aria-label="Search orders by Order ID" />
         </div>
         <button type="button" id="clear-order-search-btn" class="btn-outline btn-sm" hidden>
@@ -179,7 +173,7 @@
             </button>
           </div>
           <h2 id="refund-modal-title" class="modal-title">Request Refund &amp; Grok AI Decision</h2>
-          <p id="refund-modal-subtitle" class="modal-subtitle">Order REF-2026-XXXXX</p>
+          <p id="refund-modal-subtitle" class="modal-subtitle">Order</p>
         </div>
         <button type="button" class="icon-close-btn" id="close-refund-modal-btn" aria-label="Close Refund Modal">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -253,7 +247,7 @@
                 <span class="scenario-chips-label">Quick test:</span>
                 <button type="button" class="scenario-chip" data-preset-reason="Item arrived damaged/cold"
                   data-preset-note="My item arrived damaged and cold, I have proof of payment from today.">
-                  ✓ Valid 7-Day Claim
+                  ✓ Valid 14-day claim
                 </button>
                 <button type="button" class="scenario-chip" data-preset-reason="Changed my mind"
                   data-preset-note="I wore the item outside and just changed my mind, no defect.">

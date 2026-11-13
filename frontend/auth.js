@@ -135,7 +135,7 @@ function updateAuthModeUI() {
   if (signupExtraFields) signupExtraFields.hidden = !isSignUp;
 
   if (authTitle) {
-    authTitle.textContent = isSignUp ? 'Create your Refund account' : 'Sign in to Refund';
+    authTitle.textContent = isSignUp ? 'Create your Returns Trade Agent account' : 'Sign in to Returns Trade Agent';
   }
   if (authSubtitle) {
     authSubtitle.textContent = isSignUp
@@ -421,7 +421,7 @@ function showRecoveryForm() {
   document.querySelector('.auth-footer')?.setAttribute('hidden', '');
   if (resetPasswordForm) resetPasswordForm.hidden = false;
   if (authTitle) authTitle.textContent = 'Choose a new password';
-  if (authSubtitle) authSubtitle.textContent = 'Enter a new password for your Refund account.';
+  if (authSubtitle) authSubtitle.textContent = 'Enter a new password for your Returns Trade Agent account.';
 }
 
 if (isRecovery) showRecoveryForm();

@@ -253,10 +253,10 @@ function setCategory(category) {
     dom.heroCategoryTag.textContent = 'SANDTON GOURMET KITCHEN • FRESH PREPARED';
     dom.heroTitle.textContent = 'Fresh Artisan Food, Delivered Fast';
     dom.heroSubtitle.textContent =
-      'Order gourmet burgers, wood-fired pizza, pasta, and craft combos in South African Rand (R). Backed by our 14-day return window from delivery.';
+      'Order gourmet burgers, wood-fired pizza, pasta, and craft combos in South African Rand (R). Food cannot be returned.';
     dom.catalogHeading.textContent = '🍔 Food Menu';
   } else {
-    dom.heroCategoryTag.textContent = 'REFUND APPAREL • DATABASE SEED SKUS';
+    dom.heroCategoryTag.textContent = 'RETURNS TRADE AGENT • APPAREL';
     dom.heroTitle.textContent = 'Everyday Streetwear & Tailored Essentials';
     dom.heroSubtitle.textContent =
       'Matches the exact SKU items in public.order_items (SKU-TSHIRT-M, SKU-JEANS-32, SKU-HOODIE-L, SKU-DRESS-S, SKU-JACKET-XL).';
@@ -577,6 +577,7 @@ function openQuickView(productId) {
         <div class="nutrition-box"><span>Protein</span><strong>${product.nutrition.protein}</strong></div>
         <div class="nutrition-box"><span>Carbs</span><strong>${product.nutrition.carbs}</strong></div>
         <div class="nutrition-box"><span>Prep Time</span><strong>${product.prepTime}</strong></div>
+        <div class="nutrition-box"><span>Return Rule</span><strong>Food cannot be returned</strong></div>
       </div>
     `
       : `
@@ -584,7 +585,7 @@ function openQuickView(productId) {
         <div class="nutrition-box"><span>Material</span><strong>${product.material || 'Cotton'}</strong></div>
         <div class="nutrition-box"><span>Fit</span><strong>${product.fit || 'Regular'}</strong></div>
         <div class="nutrition-box"><span>Sale Status</span><strong>${product.on_sale ? 'On Sale' : 'Full Price'}</strong></div>
-        <div class="nutrition-box"><span>Return Rule</span><strong>${product.on_sale ? 'Defective Only' : '7-Day Refund'}</strong></div>
+        <div class="nutrition-box"><span>Return Rule</span><strong>${product.on_sale ? 'Not returnable (on sale)' : '14-day return'}</strong></div>
       </div>
     `;
 
@@ -675,15 +676,7 @@ async function processDemoPayment(paymentMethodLabel) {
     })
     .filter(Boolean);
 
-  // Determine shop_name based on cart items
-  const hasFood = itemsSnapshot.some((i) => i.category === 'food');
-  const hasClothes = itemsSnapshot.some((i) => i.category === 'clothes');
-  const shopName =
-    hasFood && hasClothes
-      ? 'Refund gourmet & apparel'
-      : hasFood
-      ? 'Refund Sandton Kitchen'
-      : 'Refund Studio Apparel';
+  const shopName = 'Returns Trade Agent';
 
   let createdOrder = null;
   if (window.RefundBackend) {

@@ -27,9 +27,9 @@ GROK_MODEL = os.environ.get("GROK_MODEL", "grok-3-mini")
 BUSINESS_JSON_PATH = Path(__file__).parent / "business.json"
 
 DEFAULT_PROFILE = {
-    "name": "Refund",
+    "name": "Returns Trade Agent",
     "tone": "friendly, professional, concise",
-    "signoff": "Kind regards,\nThe Refund Team",
+    "signoff": "Kind regards,\nThe Returns Trade Agent Team",
     "currency": "R",
     "hours": {
         "Mon-Fri": "08:00-17:00",
@@ -43,7 +43,7 @@ DEFAULT_PROFILE = {
         "whatsapp": "+27 82 000 0000",
     },
     "policies": {
-        "refund": "A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the quantity is not more than you bought, and there is no other open return for that item.",
+        "refund": "A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the item is not food, the quantity is not more than you bought, and there is no other open return for that item.",
         "delivery": "Delivery takes 2-5 working days within Gauteng.",
         "payment": "We accept EFT and card. We will never change our banking details by email or WhatsApp; always confirm by phone first.",
     },
@@ -201,7 +201,7 @@ def _draft(intent: str, facts: list[str], flags_list: list[str], profile: dict) 
     """
     contact = profile.get("contact", {})
     policies = profile.get("policies", {})
-    signoff = profile.get("signoff", "Kind regards,\nThe Refund Team")
+    signoff = profile.get("signoff", "Kind regards,\nThe Returns Trade Agent Team")
 
     if "possible_scam_or_payment_redirect" in flags_list:
         body = (
@@ -221,7 +221,7 @@ def _draft(intent: str, facts: list[str], flags_list: list[str], profile: dict) 
 
     if intent == "refund":
         body = (
-            f"Thank you for reaching out to {profile.get('name', 'Refund')}. "
+            f"Thank you for reaching out to {profile.get('name', 'Returns Trade Agent')}. "
             f"{policies.get('refund', '')} "
             f"We have reviewed your proof of payment and order details below."
         )
@@ -272,7 +272,7 @@ def call_grok_api_for_refund(
     )
 
     system_prompt = (
-        f"You are the official AI Refund Adjudicator for {profile.get('name', 'Refund')}.\n"
+        f"You are the official AI Refund Adjudicator for {profile.get('name', 'Returns Trade Agent')}.\n"
         f"Tone: {profile.get('tone', 'friendly, professional, concise')}.\n"
         f"Currency: {profile.get('currency', 'R')}.\n"
         f"Business Policies:\n"
@@ -294,7 +294,7 @@ def call_grok_api_for_refund(
         '  "intent": "refund" | "complaint" | "human" | "payment",\n'
         '  "needs_human": true or false,\n'
         '  "decision_reason": "Clear 1-2 sentence explanation of why Grok approved or declined the refund",\n'
-        '  "reply": "Friendly, concise customer reply ending with Kind regards,\\nThe Refund Team"\n'
+        '  "reply": "Friendly, concise customer reply ending with Kind regards,\\nThe Returns Trade Agent Team"\n'
         "}"
     )
 
@@ -431,13 +431,13 @@ def adjudicate_refund(payload: dict, profile: dict) -> dict:
         decision = "DECLINED"
         reasoning = (
             "Refunds require valid proof of payment (Order ID / receipt). "
-            "Policy: A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the quantity is not more than you bought, and there is no other open return for that item."
+            "Policy: A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the item is not food, the quantity is not more than you bought, and there is no other open return for that item."
         )
     elif not within_return_window:
         decision = "DECLINED"
         reasoning = (
             f"Order was placed {days_old} days ago, which falls outside our 14-day refund window. "
-            "Policy: A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the quantity is not more than you bought, and there is no other open return for that item."
+            "Policy: A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the item is not food, the quantity is not more than you bought, and there is no other open return for that item."
         )
     elif "changed my mind" in reason.lower():
         decision = "DECLINED"

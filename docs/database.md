@@ -32,6 +32,7 @@ Every successful sign in writes a `sign_in` row. Note that a sign up with email 
 - the order belongs to the customer and is `delivered`,
 - delivered no more than 14 days ago,
 - item not bought on sale,
+- item is not food (`order_items.category = 'food'`, including any `SKU-FOOD-*` row),
 - quantity not more than bought,
 - no other open return for that item (rejected or cancelled ones do not count).
 

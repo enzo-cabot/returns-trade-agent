@@ -266,6 +266,9 @@ async function evaluateRefundWithAI(order, refundDetails, chatHistory = []) {
   if (detectedFlags.includes('possible_scam_or_payment_redirect')) {
     decision = 'DECLINED';
     decisionReason = `Security Block: Potential banking/EFT redirect detected. ${BUSINESS_PROFILE.policies.payment}`;
+  } else if (selectedItems.some((item) => isFoodItem(item))) {
+    decision = 'DECLINED';
+    decisionReason = 'Food items cannot be returned.';
   } else if (orderStatus === 'pending' || orderStatus === 'shipped') {
     decision = 'DECLINED';
     decisionReason = `Order ${orderNumber} currently has status "${orderStatus}" and has not been marked as delivered yet. Returns require a delivered order (or you may cancel a pending order).`;
@@ -345,8 +348,24 @@ function updateEngineStatusUI() {
 // ============================================================================
 // 3. LOAD & SYNC ORDERS FROM SUPABASE / SEED DATA (DEMO-1001 .. DEMO-1010)
 // ============================================================================
+function isFoodItem(item) {
+  const category = String(item?.category || '').toLowerCase();
+  const sku = String(item?.sku || '');
+  return category === 'food' || sku.toUpperCase().startsWith('SKU-FOOD-');
+}
+
 function eligibilityForItem(item) {
-  return (state.eligibility || []).find((row) => row.order_item_id === item.id) || null;
+  const fromDb = (state.eligibility || []).find((row) => row.order_item_id === item.id);
+  if (fromDb) return fromDb;
+  if (isFoodItem(item)) {
+    return {
+      order_item_id: item.id,
+      eligible: false,
+      code: 'food',
+      reason: 'Food items cannot be returned.',
+    };
+  }
+  return null;
 }
 
 async function syncWithSupabase() {
@@ -1429,7 +1448,7 @@ async function handleSendEscalationToManager() {
     // 3. Chatbot responds with the exact ReplyEngine human escalation message
     const exactHumanReply = ReplyEngineJS
       ? ReplyEngineJS.getHumanEscalationReply(BUSINESS_PROFILE)
-      : `Of course. A team member will be with you shortly. You can also call +27 11 000 0000 or WhatsApp +27 82 000 0000.\n\nKind regards,\nThe Refund Team`;
+      : `Of course. A team member will be with you shortly. You can also call +27 11 000 0000 or WhatsApp +27 82 000 0000.\n\nKind regards,\nThe Returns Trade Agent Team`;
     appendChatMessage('bot', exactHumanReply);
 
     // 4. Build summarized email & insert into public.contact_requests + invoke forward-contact-requests Edge Function
