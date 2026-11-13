@@ -19,27 +19,13 @@ const Backend = window.RefundBackend || null;
 // from supabase-config.js. Redeclaring them here throws before this page runs.
 
 function getActiveAiApiKey() {
-  try {
-    const saved = localStorage.getItem(AI_CONFIG.STORAGE_KEY);
-    if (saved && saved.trim()) return saved.trim();
-  } catch (_) {}
-  if (
-    AI_CONFIG.API_KEY &&
-    !AI_CONFIG.API_KEY.includes('YOUR_') &&
-    AI_CONFIG.API_KEY.trim().length > 0
-  ) {
-    return AI_CONFIG.API_KEY.trim();
-  }
   return '';
 }
 
-function getActiveAiModel() {
-  try {
-    const saved = localStorage.getItem(AI_CONFIG.MODEL_STORAGE_KEY);
-    if (saved && saved.trim()) return saved.trim();
-  } catch (_) {}
-  return AI_CONFIG.MODEL || 'grok-3-mini';
-}
+try {
+  localStorage.removeItem('refund_grok_api_key_v1');
+  localStorage.removeItem('refund_grok_model_v1');
+} catch (_) {}
 
 function formatCurrency(amount) {
   if (Backend && typeof Backend.formatRand === 'function') {
@@ -153,112 +139,10 @@ async function evaluateRefundWithAI(order, refundDetails, chatHistory = []) {
   }
 
   const hasSaleItemSelected = selectedItems.some((item) => Boolean(item.on_sale));
-  const orderNumber = order?.order_number || order?.order_code || 'DEMO-1001';
+  const orderNumber = order?.order_number || order?.order_code || 'TEST-2001';
   const orderStatus = String(order?.status || 'delivered').toLowerCase();
 
-  // 1. If a live AI / Grok API key is configured, query AI_CONFIG.API_URL
-  const apiKey = getActiveAiApiKey();
-  if (apiKey) {
-    const isGroqCloud = apiKey.startsWith('gsk_');
-    const endpoint = isGroqCloud
-      ? 'https://api.groq.com/openai/v1/chat/completions'
-      : AI_CONFIG.API_URL;
-    const model = isGroqCloud ? 'llama-3.3-70b-versatile' : getActiveAiModel();
-
-    const systemPrompt = [
-      `You are the official AI Refund Adjudicator for "${BUSINESS_PROFILE.name}" (${BUSINESS_PROFILE.location}).`,
-      `Tone: ${BUSINESS_PROFILE.tone}. Currency: ${BUSINESS_PROFILE.currency} (ZAR).`,
-      `Business Policies:`,
-      `- Refund Policy: ${BUSINESS_PROFILE.policies.refund}`,
-      `- Delivery Policy: ${BUSINESS_PROFILE.policies.delivery}`,
-      `- Payment Security Policy: ${BUSINESS_PROFILE.policies.payment}`,
-      ``,
-      `STRICT ADJUDICATION RULES:`,
-      `1. If detected_security_flags includes "possible_scam_or_payment_redirect", DECLINE immediately.`,
-      `2. If order_status is "pending" or "shipped" (not yet delivered), DECLINE return/refund until delivery (or suggest order cancellation if pending).`,
-      `3. If days_since_purchase > 14, DECLINE because it exceeds the 14-day return window measured from delivery.`,
-      `4. If any selected item has on_sale=true AND the reason is non-defective ("Changed my mind"), DECLINE because sale items cannot be refunded for change of mind.`,
-      `5. If reason is "Changed my mind", DECLINE automated approval and invite manager inspection.`,
-      `6. Otherwise (within 14 days of delivery, proof of payment verified via Order ID, valid defect/damage/wrong item), APPROVE the refund.`,
-      ``,
-      `Return ONLY valid JSON with keys: { "decision": "APPROVED" | "DECLINED", "confidence": number, "intent": string, "needs_human": boolean, "decision_reason": string, "reply": string }`,
-    ].join('\n');
-
-    const userPrompt = JSON.stringify({
-      order_number: orderNumber,
-      order_status: orderStatus,
-      days_since_purchase: daysSinceOrder,
-      selected_items: selectedItems.map((i) => ({
-        sku: i.sku,
-        name: i.product_name || i.name,
-        qty: i.quantity,
-        unit_price: i.unit_price || i.price,
-        on_sale: Boolean(i.on_sale),
-      })),
-      refund_amount_zar: `R${refundAmount.toFixed(2)}`,
-      reason,
-      notes,
-      detected_security_flags: detectedFlags,
-      recent_chat_turns: chatHistory.slice(-4),
-    });
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const raw = data?.choices?.[0]?.message?.content || '{}';
-        const parsed = JSON.parse(raw);
-        let decision = String(parsed.decision || '').toUpperCase();
-        if (decision !== 'APPROVED' && decision !== 'DECLINED') {
-          decision = 'DECLINED';
-        }
-        if (detectedFlags.includes('possible_scam_or_payment_redirect')) {
-          decision = 'DECLINED';
-        }
-
-        return {
-          is_valid: decision === 'APPROVED',
-          decision,
-          decision_reason:
-            parsed.decision_reason ||
-            `Evaluated order ${orderNumber} (${daysSinceOrder}d old) under the 14-day policy.`,
-          reply:
-            parsed.reply ||
-            `${parsed.decision_reason || ''}\n\n${BUSINESS_PROFILE.signoff}`,
-          intent: parsed.intent || baseEngine.intent || 'refund',
-          confidence: Number(parsed.confidence || 0.93),
-          needs_human:
-            Boolean(parsed.needs_human) ||
-            decision === 'DECLINED' ||
-            detectedFlags.length > 0,
-          flags: detectedFlags,
-          days_since_purchase: daysSinceOrder,
-          policy_applied: BUSINESS_PROFILE.policies.refund,
-          adjudicated_by: `Grok AI (${model})`,
-        };
-      }
-    } catch (err) {
-      console.warn('[evaluateRefundWithAI] Live API error, falling back to policy engine:', err);
-    }
-  }
-
-  // 2. Deterministic Rule-Based Fallback grounded in business.json & seed data rules
+  // The browser does not call an LLM. Eligibility comes from the database.
   const policyText = BUSINESS_PROFILE.policies.refund;
   let decision = 'APPROVED';
   let decisionReason = '';
@@ -323,7 +207,7 @@ async function evaluateRefundWithAI(order, refundDetails, chatHistory = []) {
     flags: detectedFlags,
     days_since_purchase: daysSinceOrder,
     policy_applied: policyText,
-    adjudicated_by: 'Refund AI Policy Engine (business.json + reply_engine)',
+    adjudicated_by: 'Return rules',
   };
 }
 
@@ -333,16 +217,8 @@ window.evaluateRefundWithAI = evaluateRefundWithAI;
 function updateEngineStatusUI() {
   const statusText = document.getElementById('engine-status-text');
   const modeTag = document.getElementById('chatbot-mode-tag');
-  const hasKey = Boolean(getActiveAiApiKey());
-  const modelName = getActiveAiModel();
-
-  if (hasKey) {
-    if (statusText) statusText.textContent = `Grok AI (${modelName}) Active`;
-    if (modeTag) modeTag.textContent = `Grok API (${modelName}) + business.json`;
-  } else {
-    if (statusText) statusText.textContent = 'ReplyEngine + AI Validator Ready';
-    if (modeTag) modeTag.textContent = 'business.json + reply_engine.py (Click 🔑 for live Grok API)';
-  }
+  if (statusText) statusText.textContent = 'Return rules';
+  if (modeTag) modeTag.textContent = 'Database return rules';
 }
 
 // ============================================================================
@@ -686,7 +562,7 @@ function renderOrdersPage() {
           ? 'View Escalation & AI Chat'
           : latestReturn
           ? 'Appeal / Talk to a Person'
-          : 'Request Refund';
+          : 'Request a return';
 
       return `
         <article class="order-card ${isHighlighted ? 'is-highlighted' : ''}" data-order-code="${escapeHtml(orderNum)}">
@@ -918,7 +794,7 @@ function openRefundModal(orderNumber) {
   document.getElementById('refund-reason').value = existingReturn?.reason || '';
   document.getElementById('refund-notes').value = '';
   document.getElementById('refund-alert').hidden = true;
-  document.getElementById('refund-btn-text').textContent = 'Submit Refund';
+  document.getElementById('refund-btn-text').textContent = 'Submit return';
 
   // Reset right-side panels
   document.getElementById('post-decision-actions').hidden = true;
@@ -1226,7 +1102,7 @@ async function handleRefundSubmit(event) {
   } finally {
     submitBtn.disabled = false;
     spinner.hidden = true;
-    btnText.textContent = 'Submit Refund';
+    btnText.textContent = 'Submit return';
   }
 }
 
@@ -1589,44 +1465,6 @@ function initOrdersPage() {
     if (e.target.id === 'refund-modal') {
       e.target.hidden = true;
     }
-  });
-
-  // AI / Grok API Key Config Bar
-  const grokKeyInput = document.getElementById('grok-api-key-input');
-  const grokModelSelect = document.getElementById('grok-model-select');
-  if (grokKeyInput && getActiveAiApiKey()) {
-    grokKeyInput.value = getActiveAiApiKey();
-  }
-  if (grokModelSelect) {
-    grokModelSelect.value = getActiveAiModel();
-  }
-
-  document.getElementById('toggle-grok-key-btn')?.addEventListener('click', () => {
-    const bar = document.getElementById('grok-config-bar');
-    if (bar) {
-      bar.hidden = !bar.hidden;
-      if (!bar.hidden) grokKeyInput?.focus();
-    }
-  });
-
-  document.getElementById('save-grok-key-btn')?.addEventListener('click', () => {
-    const keyVal = grokKeyInput?.value.trim() || '';
-    const modelVal = grokModelSelect?.value || 'grok-3-mini';
-    try {
-      if (keyVal) {
-        localStorage.setItem(AI_CONFIG.STORAGE_KEY, keyVal);
-      } else {
-        localStorage.removeItem(AI_CONFIG.STORAGE_KEY);
-      }
-      localStorage.setItem(AI_CONFIG.MODEL_STORAGE_KEY, modelVal);
-    } catch (_) {}
-    updateEngineStatusUI();
-    document.getElementById('grok-config-bar').hidden = true;
-    showToast(
-      keyVal
-        ? `AI Key saved (${modelVal} active for evaluateRefundWithAI)`
-        : 'AI Key cleared (using rule-based policy evaluator)'
-    );
   });
 
   updateEngineStatusUI();

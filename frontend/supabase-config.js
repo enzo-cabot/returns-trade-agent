@@ -29,16 +29,17 @@ const SUPABASE_CONFIG = {
   AUTH_LOG_FUNCTION: 'log-auth-event',
 };
 
-// Do not fill API_KEY in. This script runs in the browser, so a real xAI key
-// here — or one pasted into the orders page and saved in localStorage — is
-// visible to anyone who can open the page. Leave the placeholder.
+// The browser does not call an LLM. Key and URL stay blank.
 const AI_CONFIG = {
-  API_KEY: 'YOUR_AI_OR_GROK_API_KEY',
-  API_URL: 'https://api.x.ai/v1/chat/completions',
-  MODEL: 'grok-3-mini',
-  STORAGE_KEY: 'refund_grok_api_key_v1',
-  MODEL_STORAGE_KEY: 'refund_grok_model_v1',
+  API_KEY: '',
+  API_URL: '',
+  MODEL: '',
 };
+
+try {
+  localStorage.removeItem('refund_grok_api_key_v1');
+  localStorage.removeItem('refund_grok_model_v1');
+} catch (_) {}
 
 // Business Profile (from business.json)
 const BUSINESS_PROFILE = {

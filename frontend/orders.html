@@ -114,7 +114,7 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <input type="search" id="order-search-input" class="search-input"
-            placeholder="Search by order number (DEMO-1001) or item name..."
+            placeholder="Search by order number (TEST-2001) or item name..."
             aria-label="Search orders by Order ID" />
         </div>
         <button type="button" id="clear-order-search-btn" class="btn-outline btn-sm" hidden>
@@ -165,14 +165,11 @@
           <div class="chatbot-badge-row">
             <span class="chatbot-live-pill">
               <span class="chatbot-live-dot"></span>
-              Grok API Refund Validator &amp; ReplyEngine
+              Return request
             </span>
-            <span id="chatbot-mode-tag" class="chatbot-mode-tag">Grok API + business.json</span>
-            <button type="button" id="toggle-grok-key-btn" class="btn-outline btn-xs">
-              🔑 Configure Grok API Key
-            </button>
+            <span id="chatbot-mode-tag" class="chatbot-mode-tag">Database return rules</span>
           </div>
-          <h2 id="refund-modal-title" class="modal-title">Request Refund &amp; Grok AI Decision</h2>
+          <h2 id="refund-modal-title" class="modal-title">Request a return</h2>
           <p id="refund-modal-subtitle" class="modal-subtitle">Order</p>
         </div>
         <button type="button" class="icon-close-btn" id="close-refund-modal-btn" aria-label="Close Refund Modal">
@@ -182,31 +179,6 @@
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-      </div>
-
-      <!-- Grok API Key Configuration Bar (Persisted in localStorage or configured in orders.js) -->
-      <div id="grok-config-bar" class="grok-config-bar" hidden>
-        <div class="grok-config-row">
-          <div class="grok-config-info">
-            <strong>xAI Grok API Key</strong>
-            <span>Calls <code class="inline-code">https://api.x.ai/v1/chat/completions</code> from this browser. A key typed here is visible to anyone who can use this page — do not paste a production key. The database, not this call, decides whether a return is accepted.</span>
-          </div>
-          <div class="grok-config-controls">
-            <input
-              type="password"
-              id="grok-api-key-input"
-              class="form-input grok-key-input"
-              placeholder="Paste xai-... (or gsk_...) API key"
-              autocomplete="off"
-            />
-            <select id="grok-model-select" class="form-input grok-model-select" aria-label="Grok Model">
-              <option value="grok-3-mini">grok-3-mini (Fast)</option>
-              <option value="grok-3">grok-3</option>
-              <option value="grok-2-latest">grok-2-latest</option>
-            </select>
-            <button type="button" id="save-grok-key-btn" class="btn-primary btn-sm">Save Key</button>
-          </div>
-        </div>
       </div>
 
       <div class="chatbot-modal-grid">
@@ -223,7 +195,7 @@
             </div>
 
             <div class="form-group">
-              <label for="refund-reason" class="form-label">2. Refund Reason</label>
+              <label for="refund-reason" class="form-label">2. Return reason</label>
               <select id="refund-reason" class="form-input" required>
                 <option value="">Choose a reason...</option>
                 <option value="Food arrived cold or damaged">Food arrived cold or damaged</option>
@@ -276,7 +248,7 @@
               </div>
               <button type="submit" id="submit-refund-btn" class="btn-primary">
                 <span id="refund-spinner" class="spinner" hidden></span>
-                <span id="refund-btn-text">Submit Refund</span>
+                <span id="refund-btn-text">Submit return</span>
               </button>
             </div>
           </form>

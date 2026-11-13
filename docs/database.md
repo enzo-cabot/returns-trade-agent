@@ -40,6 +40,8 @@ Every successful sign in writes a `sign_in` row. Note that a sign up with email 
 
 New returns always start as `submitted`. Only an employee can change `returns.status` (row level security). The customer screens never approve a return.
 
+The database rules decide whether an item can be returned. The browser does not call a model. A future LLM call has to go through a server-side Edge Function that reads an `XAI_API_KEY` secret. That key must not be placed in frontend code or in Netlify.
+
 Each status, including the first `submitted` row, is written to `return_logs` and queued in `return_notifications`. That outbox stores the order number, item, status, and who it is for, plus `customer_sent_at`, `owner_sent_at`, `slack_sent_at`, `attempts`, `last_error`, and `sent_at` (set only when all three sends succeeded). A failed send stays visible and is retried, up to 5 attempts. Once a minute `invoke_return_notifications()` calls the Edge Function `notify-return-events` when a row is waiting. The function URL and shared secret live in Vault as `notify_return_function_url` and `notify_return_secret`. Until both are set, the timer does nothing.
 
 Customers place a new shop order with `place_order` (pending, or delivered only when `p_demo` is true). They cannot insert into `orders` directly.
