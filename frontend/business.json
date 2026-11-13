@@ -1,0 +1,32 @@
+{
+  "name": "Refund",
+  "tone": "friendly, professional, concise",
+  "signoff": "Kind regards,\nThe Refund Team",
+  "currency": "R",
+  "hours": {
+    "Mon-Fri": "08:00-17:00",
+    "Sat": "09:00-13:00",
+    "Sun": "Closed"
+  },
+  "location": "123 Example Street, Sandton, Johannesburg",
+  "contact": {
+    "phone": "+27 11 000 0000",
+    "email": "info@example.co.za",
+    "whatsapp": "+27 82 000 0000"
+  },
+  "policies": {
+    "refund": "A return is allowed when the order is yours and delivered, delivery was no more than 14 days ago, the item was not bought on sale, the quantity is not more than you bought, and there is no other open return for that item.",
+    "delivery": "Delivery takes 2-5 working days within Gauteng.",
+    "payment": "We accept EFT and card. We will never change our banking details by email or WhatsApp; always confirm by phone first."
+  },
+  "escalate_keywords": [
+    "lawyer",
+    "legal action",
+    "sue",
+    "fraud",
+    "chargeback",
+    "media",
+    "ombud"
+  ]
+}
+

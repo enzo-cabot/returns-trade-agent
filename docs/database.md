@@ -10,7 +10,7 @@ On sign up the database automatically:
 - links any shop `orders` with the same email to the new user,
 - writes a `sign_up` row to `login_logs`.
 
-Every successful sign in writes a `sign_in` row. Note that a sign up with email confirmation off also counts as a first sign in. Failed sign ins and sign outs are not visible to the database: the Java backend must log them with `log_auth_event(event, email, user_id, ip_address, user_agent)` (service key only). Pass IP and device there too.
+Every successful sign in writes a `sign_in` row. Note that a sign up with email confirmation off also counts as a first sign in. Failed sign ins and sign outs are not visible to the database. The frontend posts them to the Edge Function `log-auth-event`, which calls `log_auth_event(event, email, user_id, ip_address, user_agent)` with the service key. The browser never receives that key. A backend can call the same function directly. Pass IP and device there too. The function accepts only `sign_in_failed` and `sign_out`.
 
 ## Tables
 | Table | Purpose |
@@ -35,6 +35,8 @@ Every successful sign in writes a `sign_in` row. Note that a sign up with email 
 
 New returns always start as `submitted`. Only staff can change status.
 
+The number 14 lives only in `return_window_days()`. `return_decision()` is the only copy of the checks. The insert trigger raises that function's `reason`. Signed-in customers read the same decision, per item, with `customer_return_eligibility(quantity)` and the wording with `return_policy()`. A partial unique index stops two open returns for one item from both being inserted at once.
+
 **Contact requests:**
 - `type = 'appeal'` needs a `return_id`, and it must be the customer's own return.
 - Business hours are Monday to Friday, 08:00 to 17:00 South Africa time, excluding `public_holidays`. Check any time with `is_business_hours(timestamp)`.
@@ -42,8 +44,8 @@ New returns always start as `submitted`. Only staff can change status.
 - Flagged requests are sent on automatically (see "After-hours alerts" below). Nothing for the Java app to do.
 
 **Courier tracking (dummy):**
-- Create a `courier_tracking` row with the waybill and `collected_at` when the parcel is collected.
-- Call `mock_courier_tracking(waybill)`. It returns a fake The Courier Guy response and stores status changes: collected (under 12 hours), in transit (under 48), out for delivery (under 60), then delivered.
+- Create a `courier_tracking` row with the waybill and `collected_at` when the parcel is collected. Only staff can insert that row, and only after the return is approved.
+- Call `mock_courier_tracking(waybill)`. It returns a fake The Courier Guy response and stores status changes: collected (under 12 hours), in transit (under 48), out for delivery (under 60), then delivered. The storefront shows a customer's own tracking and refreshes it with this function.
 - Swap its body for the real API later; the tables stay the same.
 
 ## After-hours alerts

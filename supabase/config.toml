@@ -162,7 +162,7 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "http://127.0.0.1:3000", "http://127.0.0.1:3000/index.html", "http://localhost:3000", "http://localhost:3000/index.html"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -198,7 +198,7 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -427,4 +427,10 @@ enabled = true
 
 # Called by the database timer with a shared secret, not a user login.
 [functions.forward-contact-requests]
+verify_jwt = false
+
+# Failed sign-ins have no session, so the gateway cannot require a user JWT.
+# The function checks the publishable key itself and only writes
+# sign_in_failed and sign_out, using the service role it already has.
+[functions.log-auth-event]
 verify_jwt = false
