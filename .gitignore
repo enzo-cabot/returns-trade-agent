@@ -4,3 +4,14 @@
 # Supabase CLI local state
 supabase/.temp/
 supabase/.branches/
+
+# Browser config. Copy frontend/supabase-public.example.js and fill the
+# local anon key from `supabase status`. Never commit a real key.
+frontend/supabase-public.js
+
+# Frontend tests
+frontend/node_modules/
+frontend/test-results/
+frontend/playwright-report/
+__pycache__/
+*.pyc

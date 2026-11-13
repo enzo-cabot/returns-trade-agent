@@ -10,7 +10,11 @@ On sign up the database automatically:
 - links any shop `orders` with the same email to the new user,
 - writes a `sign_up` row to `login_logs`.
 
-Every successful sign in writes a `sign_in` row. Note that a sign up with email confirmation off also counts as a first sign in. Failed sign ins and sign outs are not visible to the database: the Java backend must log them with `log_auth_event(event, email, user_id, ip_address, user_agent)` (service key only). Pass IP and device there too.
+The seed creates orders for demo emails such as `customer.one@example.com`, and it does not create auth users. On a fresh hosted project those orders stay unlinked until someone creates the auth user for that email. Create it in the Supabase dashboard with auto-confirm so they can sign in without a confirmation email. Until that user exists, signing in as the demo email fails. Creating the user runs the sign-up trigger, which links the matching orders.
+
+Hosted sign-up email uses Supabase's built-in mailer, which stops after a few messages with "email rate limit exceeded". Set a custom SMTP provider in the Supabase dashboard (Authentication → SMTP). This project uses Resend for that. The Resend API key stays in the Supabase SMTP settings or in Edge Function secrets. It does not go in the frontend or in Netlify. Local `supabase start` catches mail instead of sending it.
+
+Every successful sign in writes a `sign_in` row. Note that a sign up with email confirmation off also counts as a first sign in. Failed sign ins and sign outs are not visible to the database. The frontend posts them to the Edge Function `log-auth-event`, which calls `log_auth_event(event, email, user_id, ip_address, user_agent)` with the service key. The browser never receives that key. A backend can call the same function directly. Pass IP and device there too. The function accepts only `sign_in_failed` and `sign_out`.
 
 ## Tables
 | Table | Purpose |
@@ -30,10 +34,28 @@ Every successful sign in writes a `sign_in` row. Note that a sign up with email 
 - the order belongs to the customer and is `delivered`,
 - delivered no more than 14 days ago,
 - item not bought on sale,
+- item is not food (`order_items.category = 'food'`, including any `SKU-FOOD-*` row),
 - quantity not more than bought,
 - no other open return for that item (rejected or cancelled ones do not count).
 
-New returns always start as `submitted`. Only staff can change status.
+New returns always start as `submitted`. Only an employee can change `returns.status` (row level security). The customer screens never approve a return.
+
+The database rules decide whether an item can be returned. The browser does not call a model. A future LLM call has to go through a server-side Edge Function that reads an `XAI_API_KEY` secret. That key must not be placed in frontend code or in Netlify.
+
+Each status, including the first `submitted` row, is written to `return_logs` and queued in `return_notifications`. That outbox stores the order number, item, status, and who it is for, plus `customer_sent_at`, `owner_sent_at`, `slack_sent_at`, `attempts`, `last_error`, and `sent_at` (set only when all three sends succeeded). A failed send stays visible and is retried, up to 5 attempts. Once a minute `invoke_return_notifications()` calls the Edge Function `notify-return-events` when a row is waiting. The function URL and shared secret live in Vault as `notify_return_function_url` and `notify_return_secret`. Until both are set, the timer does nothing.
+
+Customers place a new shop order with `place_order` (pending, or delivered only when `p_demo` is true). They cannot insert into `orders` directly.
+
+`notify-return-events` reads these Edge Function secrets (`supabase secrets set`). None of them belong in the frontend or in Netlify:
+
+- `NOTIFY_RETURN_SECRET` (same value as Vault `notify_return_secret`)
+- `RESEND_API_KEY` and `EMAIL_FROM` (Resend), or `GMAIL_ADDRESS` and `GMAIL_APP_PASSWORD` (Gmail SMTP on port 465)
+- `SLACK_RETURNS_WEBHOOK`
+- `OWNER_EMAIL`
+
+Optional: `EMAIL_FROM_NAME`, `BRAND_NAME`. `NOTIFY_MODE=mock` skips the network and is only for a local test. Vault also needs `notify_return_function_url` (the function URL) before the timer will call it.
+
+The number 14 lives only in `return_window_days()`. `return_decision()` is the only copy of the checks. The insert trigger raises that function's `reason`. Signed-in customers read the same decision, per item, with `customer_return_eligibility(quantity)` and the wording with `return_policy()`. A partial unique index stops two open returns for one item from both being inserted at once.
 
 **Contact requests:**
 - `type = 'appeal'` needs a `return_id`, and it must be the customer's own return.
@@ -42,8 +64,8 @@ New returns always start as `submitted`. Only staff can change status.
 - Flagged requests are sent on automatically (see "After-hours alerts" below). Nothing for the Java app to do.
 
 **Courier tracking (dummy):**
-- Create a `courier_tracking` row with the waybill and `collected_at` when the parcel is collected.
-- Call `mock_courier_tracking(waybill)`. It returns a fake The Courier Guy response and stores status changes: collected (under 12 hours), in transit (under 48), out for delivery (under 60), then delivered.
+- Create a `courier_tracking` row with the waybill and `collected_at` when the parcel is collected. Only staff can insert that row, and only after the return is approved.
+- Call `mock_courier_tracking(waybill)`. It returns a fake The Courier Guy response and stores status changes: collected (under 12 hours), in transit (under 48), out for delivery (under 60), then delivered. The storefront shows a customer's own tracking and refreshes it with this function.
 - Swap its body for the real API later; the tables stay the same.
 
 ## After-hours alerts
@@ -70,5 +92,12 @@ To add another channel later, add a `<channel>_sent_at` column and a send step i
 - Calls on behalf of a customer: Supabase REST API (`https://xgihyjvktkkjcroezqyx.supabase.co/rest/v1/`) with the publishable key and the user's access token, so the rules above apply.
 - Backend jobs (forwarding alerts, logging failed sign ins): the secret key, or a direct Postgres connection via JDBC using the connection string from the dashboard (Project Settings, Database).
 
+## Frontend
+The static site lives in `frontend/`. Netlify publishes that folder with no build step (`netlify.toml`).
+
+The browser only receives the project URL and the anon/publishable key, from `frontend/supabase-public.example.js`. The committed key is the placeholder `YOUR_SUPABASE_ANON_PUBLIC_KEY`. For local Supabase, replace that placeholder with the anon key printed by `supabase status`. For a Netlify deploy, edit the same file before publishing. There is no build, so a Netlify environment variable is not substituted into the page.
+
+The service role key, Resend, Slack, and Gmail credentials stay in Supabase Edge Function secrets (`supabase secrets set`). They do not go in the frontend or in Netlify.
+
 ## Running locally
-`supabase start` then `supabase db reset` rebuilds the database with the dummy data. Local email confirmation is off; on the live project it is on.
+`supabase start` then `supabase db reset` rebuilds the database with the dummy data. Local email confirmation is off; on the live project it is on. Serve the site with `python3 -m http.server 3000` from `frontend/`.

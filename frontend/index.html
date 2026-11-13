@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in to Returns Trade Agent</title>
+  <!-- Inter Font for crisp modern typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Supabase JS SDK v2 via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="auth-wrapper">
+    <!-- Main Card Container -->
+    <section class="auth-card" aria-labelledby="auth-title">
+      <!-- Header Section -->
+      <header class="auth-header">
+        <div class="app-logo" aria-hidden="true">
+          <!-- Minimalist white Refund icon -->
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 10H16C18.7614 10 21 12.2386 21 15C21 17.7614 18.7614 20 16 20H11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 6L3 10L7 14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1 id="auth-title" class="auth-title">Sign in to Returns Trade Agent</h1>
+        <p id="auth-subtitle" class="auth-subtitle">Welcome back. Sign in with your social account or email.</p>
+      </header>
+
+      <!-- Inline Feedback Alert Box (Hidden by default) -->
+      <div id="feedback-alert" class="feedback-alert" role="alert" aria-live="polite" hidden>
+        <span id="feedback-icon" class="feedback-icon" aria-hidden="true"></span>
+        <span id="feedback-message" class="feedback-message"></span>
+      </div>
+
+      <!-- Shown when the password-reset email brings the person back with a recovery session. -->
+      <form id="reset-password-form" class="login-form" hidden>
+        <div class="form-group">
+          <label for="new-password" class="form-label">New password</label>
+          <input
+            type="password"
+            id="new-password"
+            name="new_password"
+            class="form-input"
+            autocomplete="new-password"
+            minlength="6"
+            required
+          />
+        </div>
+        <button type="submit" id="reset-submit-btn" class="btn-submit">Update password</button>
+      </form>
+
+      <!-- Social Sign-In Buttons (No Passkey) -->
+      <div class="social-buttons">
+        <button type="button" class="btn-social" data-provider="google" id="btn-google">
+          <svg class="social-icon" width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"/>
+            <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"/>
+            <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
+            <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <button type="button" class="btn-social" data-provider="apple" id="btn-apple">
+          <svg class="social-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M14.072 14.373C13.504 15.207 12.899 16.03 11.981 16.048C11.077 16.067 10.785 15.512 9.752 15.512C8.718 15.512 8.393 16.031 7.541 16.067C6.657 16.103 5.978 15.176 5.405 14.346C4.237 12.658 3.338 9.575 4.542 7.485C5.139 6.447 6.211 5.792 7.369 5.774C8.248 5.757 9.078 6.366 9.615 6.366C10.151 6.366 11.157 5.632 12.215 5.741C12.658 5.759 13.901 5.92 14.699 7.087C14.635 7.127 13.214 7.959 13.23 9.69C13.248 11.758 15.044 12.448 15.065 12.457C15.042 12.529 14.78 13.438 14.072 14.373ZM11.332 4.303C11.805 3.729 12.124 2.931 12.037 2.125C11.355 2.153 10.528 2.579 10.038 3.151C9.601 3.657 9.218 4.471 9.322 5.258C10.083 5.317 10.858 4.876 11.332 4.303Z" fill="#111111"/>
+          </svg>
+          <span>Continue with iCloud / Apple</span>
+        </button>
+
+        <button type="button" class="btn-social" data-provider="facebook" id="btn-facebook">
+          <svg class="social-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18 9C18 4.02944 13.9706 0 9 0C4.02944 0 0 4.02944 0 9C0 13.4921 3.29115 17.2155 7.59375 17.8907V11.6016H5.30859V9H7.59375V7.01719C7.59375 4.76156 8.93742 3.51562 10.9932 3.51562C11.9779 3.51562 13.0078 3.69141 13.0078 3.69141V5.90625H11.8729C10.7549 5.90625 10.4062 6.60006 10.4062 7.31175V9H12.9023L12.5033 11.6016H10.4062V17.8907C14.7088 17.2155 18 13.4921 18 9Z" fill="#1877F2"/>
+          </svg>
+          <span>Continue with Facebook</span>
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="divider" role="separator" aria-label="or">
+        <span class="divider-text">OR</span>
+      </div>
+
+      <!-- Email & Password Form -->
+      <form id="login-form" class="login-form" novalidate>
+        <!-- Sign-Up Extra Fields (Copied into public.profiles per docs/database.md) -->
+        <div id="signup-extra-fields" class="signup-extra-fields" hidden>
+          <div class="form-group">
+            <label for="full-name" class="form-label">Full Name</label>
+            <input
+              type="text"
+              id="full-name"
+              name="full_name"
+              class="form-input"
+              placeholder="Customer One"
+              autocomplete="name"
+            />
+          </div>
+          <div class="form-group">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              class="form-input"
+              placeholder="+27 82 000 0000"
+              autocomplete="tel"
+            />
+          </div>
+        </div>
+
+        <!-- Email Field -->
+        <div class="form-group">
+          <label for="email" class="form-label">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input"
+            placeholder="you@company.com"
+            value="customer.one@example.com"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <!-- Password Field with right-aligned "Forgot?" link above the field -->
+        <div class="form-group">
+          <div class="label-row">
+            <label for="password" class="form-label">Password</label>
+            <a href="#forgot-password" id="forgot-password-link" class="forgot-link">Forgot?</a>
+          </div>
+          <div class="password-input-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input password-input"
+              value="demo1234"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              id="toggle-password"
+              class="password-toggle-btn"
+              aria-label="Show password"
+              aria-pressed="false"
+            >
+              <!-- Eye Icon (Visible by default) -->
+              <svg id="icon-eye" class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <!-- Eye-Off Icon (Hidden by default) -->
+              <svg id="icon-eye-off" class="eye-icon is-hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="submit-btn" class="btn-submit">
+          <span id="submit-spinner" class="spinner" aria-hidden="true" hidden></span>
+          <span id="submit-text">Continue</span>
+        </button>
+      </form>
+
+      <!-- Magic Link Option inside the card -->
+      <div class="magic-link-row">
+        <a href="#magic-link" id="magic-link-btn" class="magic-link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+          </svg>
+          <span>Email me a sign-in link instead</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Footer Outside the Card -->
+    <footer class="auth-footer">
+      <p id="auth-footer-text">
+        No account yet?
+        <a href="#create-account" id="toggle-auth-mode-link" class="create-account-link">Create one</a>
+      </p>
+    </footer>
+  </main>
+
+  <script src="supabase-public.example.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>

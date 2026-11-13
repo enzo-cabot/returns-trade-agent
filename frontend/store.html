@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Returns Trade Agent — Store</title>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="store.css" />
+  <!-- Supabase JS SDK v2 via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="refund-theme">
+  <!-- ========================================================================
+       1. NAVIGATION BAR
+       ======================================================================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <!-- Left: Refund Logo & Brand -->
+      <a href="store.html" class="brand-link" aria-label="Returns Trade Agent home">
+        <div class="app-logo" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 10H16C18.7614 10 21 12.2386 21 15C21 17.7614 18.7614 20 16 20H11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 6L3 10L7 14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Returns Trade Agent</span>
+          <span class="brand-tag">Store &amp; Returns Portal</span>
+        </div>
+      </a>
+
+      <!-- Center: Prominent Category Switcher Toggle (🍔 Food vs 👕 Clothes) -->
+      <div class="category-switcher" role="tablist" aria-label="Product Category Switcher">
+        <button
+          type="button"
+          class="switcher-pill is-active"
+          data-category="food"
+          role="tab"
+          aria-selected="true"
+        >
+          <span>🍔 Food</span>
+        </button>
+        <button
+          type="button"
+          class="switcher-pill"
+          data-category="clothes"
+          role="tab"
+          aria-selected="false"
+        >
+          <span>👕 Clothes</span>
+        </button>
+      </div>
+
+      <!-- Right: Search, Wishlist, Cart, My Orders & Sign Out -->
+      <div class="header-actions">
+        <!-- Real-Time Search Bar -->
+        <div class="search-wrapper">
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="search"
+            id="product-search"
+            class="search-input"
+            placeholder="Search food, clothes, or SKU..."
+            aria-label="Search products"
+          />
+        </div>
+
+        <!-- Wishlist Button -->
+        <button type="button" id="open-wishlist-btn" class="action-icon-btn" aria-label="Open Wishlist">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+          <span class="btn-label">Wishlist</span>
+          <span id="wishlist-count-badge" class="counter-badge" hidden>0</span>
+        </button>
+
+        <!-- Cart Button -->
+        <button type="button" id="open-cart-btn" class="action-icon-btn" aria-label="Open Cart">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          <span class="btn-label">Cart</span>
+          <span id="cart-count-badge" class="counter-badge" hidden>0</span>
+        </button>
+
+        <!-- My Orders Link -->
+        <a href="orders.html" id="open-orders-btn" class="action-icon-btn" style="text-decoration: none;" aria-label="My Orders">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <span class="btn-label">My Orders</span>
+          <span id="orders-count-badge" class="counter-badge" hidden>0</span>
+        </a>
+
+        <!-- User Session & Sign Out -->
+        <div class="user-menu">
+          <span id="user-email-pill" class="user-email-pill" title="Signed-in account">customer.one@example.com</span>
+          <button type="button" id="sign-out-btn" class="btn-signout" title="Sign Out">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span class="signout-label">Sign Out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       2. MAIN STOREFRONT CONTAINER
+       ======================================================================== -->
+  <main class="store-main">
+    <!-- Store Hero Card -->
+    <section class="store-hero-card">
+      <div class="hero-copy">
+        <div class="hero-eyebrow">
+          <span class="status-dot"></span>
+          <span id="hero-category-tag">SANDTON GOURMET FOOD &amp; APPAREL</span>
+        </div>
+        <h1 id="hero-title" class="hero-title">Fresh Artisan Food, Delivered Fast</h1>
+        <p id="hero-subtitle" class="hero-subtitle">
+          Delivered items can be returned within 14 days. Sale items and food cannot be returned. Switch between 🍔 Food and 👕 Clothes above.
+        </p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-pill">
+          <span class="stat-label">Return policy</span>
+          <strong class="stat-value">14 days from delivery</strong>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Gauteng Delivery</span>
+          <strong class="stat-value">2–5 Working Days</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Catalog Toolbar -->
+    <section class="catalog-toolbar" aria-label="Catalog Status">
+      <div class="toolbar-left">
+        <h2 id="catalog-heading" class="catalog-heading">🍔 Food Menu</h2>
+        <span id="catalog-count" class="catalog-count">6 items</span>
+      </div>
+      <div class="toolbar-right">
+        <button type="button" id="clear-search-btn" class="btn-outline btn-xs" hidden>
+          Clear Filter
+        </button>
+      </div>
+    </section>
+
+    <!-- Product Grid -->
+    <section id="product-grid" class="product-grid" aria-live="polite">
+      <!-- Populated dynamically by store.js -->
+    </section>
+  </main>
+
+  <!-- ========================================================================
+       3. SLIDE-OVER WISHLIST DRAWER
+       ======================================================================== -->
+  <div id="drawer-backdrop" class="overlay-backdrop" hidden></div>
+
+  <aside id="wishlist-drawer" class="slide-drawer" aria-labelledby="wishlist-drawer-title" aria-hidden="true">
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <h2 id="wishlist-drawer-title" class="drawer-title">Saved Wishlist</h2>
+        <span id="wishlist-drawer-count" class="pill-count">0 items</span>
+      </div>
+      <button type="button" class="icon-close-btn" data-close-drawer="wishlist" aria-label="Close Wishlist">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <div id="wishlist-items-container" class="drawer-body">
+      <!-- Populated by store.js -->
+    </div>
+
+    <div class="drawer-footer">
+      <button type="button" id="move-all-to-cart-btn" class="btn-primary btn-block">
+        Move All to Cart
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       4. SLIDE-OVER SHOPPING CART DRAWER
+       ======================================================================== -->
+  <aside id="cart-drawer" class="slide-drawer" aria-labelledby="cart-drawer-title" aria-hidden="true">
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <h2 id="cart-drawer-title" class="drawer-title">Your Shopping Cart</h2>
+        <span id="cart-drawer-count" class="pill-count">0 items</span>
+      </div>
+      <button type="button" class="icon-close-btn" data-close-drawer="cart" aria-label="Close Cart">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <div id="cart-items-container" class="drawer-body">
+      <!-- Populated by store.js -->
+    </div>
+
+    <div class="drawer-footer">
+      <div class="summary-rows">
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span id="cart-subtotal">R0.00</span>
+        </div>
+        <div class="summary-row">
+          <span>Delivery (Gauteng)</span>
+          <span id="cart-tax">Free</span>
+        </div>
+        <div class="summary-row summary-total">
+          <span>Total (ZAR)</span>
+          <span id="cart-total">R0.00</span>
+        </div>
+      </div>
+      <button type="button" id="proceed-checkout-btn" class="btn-primary btn-block">
+        Proceed to Payment / Checkout
+      </button>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       5. PRODUCT QUICK-VIEW MODAL
+       ======================================================================== -->
+  <div id="quick-view-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="qv-title" hidden>
+    <div class="modal-card modal-card-lg">
+      <button type="button" class="icon-close-btn modal-close-floating" id="close-quick-view-btn" aria-label="Close Product Details">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <div class="qv-grid">
+        <div class="qv-image-col">
+          <img id="qv-image" src="" alt="" class="qv-image" />
+          <span id="qv-category-badge" class="card-badge"></span>
+        </div>
+
+        <div class="qv-details-col">
+          <div class="qv-header">
+            <span id="qv-sku-tag" class="sku-pill">SKU-TSHIRT-M</span>
+            <h2 id="qv-title" class="qv-title"></h2>
+            <p id="qv-price" class="qv-price"></p>
+          </div>
+
+          <p id="qv-description" class="qv-description"></p>
+
+          <!-- Dynamic Specs / Dietary / Size Selector -->
+          <div id="qv-dynamic-specs" class="qv-dynamic-specs"></div>
+
+          <!-- Quantity & Action Controls -->
+          <div class="qv-controls">
+            <div class="qty-selector-group">
+              <span class="form-label">Quantity</span>
+              <div class="qty-control">
+                <button type="button" id="qv-qty-minus" class="qty-btn" aria-label="Decrease quantity">−</button>
+                <span id="qv-qty-value" class="qty-value">1</span>
+                <button type="button" id="qv-qty-plus" class="qty-btn" aria-label="Increase quantity">+</button>
+              </div>
+            </div>
+
+            <div class="qv-action-buttons">
+              <button type="button" id="qv-wishlist-btn" class="btn-outline">
+                <span id="qv-wishlist-text">♡ Add to Wishlist</span>
+              </button>
+              <button type="button" id="qv-add-cart-btn" class="btn-primary">
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       6. DEMO PAYMENT & ORDER CONFIRMATION MODAL
+       ======================================================================== -->
+  <div id="checkout-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="checkout-modal-title" hidden>
+    <div class="modal-card modal-card-md">
+      <!-- STEP 1: Payment Method Selection (Credit Card vs Google Pay) -->
+      <div id="checkout-form-view">
+        <div class="modal-header">
+          <div>
+            <div class="demo-pill-row">
+              <span class="demo-mode-badge">Demo Checkout • South African Rand (R)</span>
+            </div>
+            <h2 id="checkout-modal-title" class="modal-title">Select Payment Method</h2>
+            <p class="modal-subtitle">Places the order on your account. New orders start as pending.</p>
+          </div>
+          <button type="button" class="icon-close-btn" id="close-checkout-btn" aria-label="Close Checkout">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <div class="payment-total-banner">
+          <div>
+            <span class="payment-total-label">Order Total</span>
+            <span id="checkout-items-count-label" class="payment-total-sub">0 items</span>
+          </div>
+          <strong id="checkout-summary-total" class="payment-total-value">R0.00</strong>
+        </div>
+
+        <div id="checkout-alert" class="inline-alert is-error" hidden></div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="shipping-address" class="form-label">Delivery Address (Gauteng)</label>
+          <input
+            type="text"
+            id="shipping-address"
+            class="form-input"
+            value="123 Example Street, Sandton, Johannesburg"
+            required
+          />
+        </div>
+
+        <!-- Payment Tabs: Credit Card vs Google Pay -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <span class="form-label">Choose Payment Option</span>
+          <div class="payment-method-tabs payment-method-tabs-2" role="tablist" aria-label="Payment Methods">
+            <button type="button" class="payment-tab is-active" data-payment-tab="card" role="tab" aria-selected="true">
+              <span>💳 Credit Card</span>
+            </button>
+            <button type="button" class="payment-tab" data-payment-tab="gpay" role="tab" aria-selected="false">
+              <span>G Pay • Google Pay</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PANEL A: Credit Card Form -->
+        <form id="checkout-card-form" class="checkout-form" novalidate>
+          <div class="payment-panel">
+            <div class="form-group">
+              <label for="card-holder" class="form-label">Cardholder Name</label>
+              <input
+                type="text"
+                id="card-holder"
+                class="form-input"
+                placeholder="Customer One"
+                value="Customer One"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="card-number" class="form-label">Card Number</label>
+              <input
+                type="text"
+                id="card-number"
+                class="form-input"
+                placeholder="4532 •••• •••• 8891"
+                value="4532 8910 2234 8891"
+                maxlength="19"
+                required
+              />
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="card-expiry" class="form-label">Expiry Date (MM/YY)</label>
+                <input
+                  type="text"
+                  id="card-expiry"
+                  class="form-input"
+                  placeholder="09/28"
+                  value="09/28"
+                  maxlength="5"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="card-cvv" class="form-label">CVV</label>
+                <input
+                  type="password"
+                  id="card-cvv"
+                  class="form-input"
+                  placeholder="442"
+                  value="442"
+                  maxlength="4"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" id="place-order-card-btn" class="btn-primary btn-block" style="margin-top: 12px;">
+            <span id="checkout-card-spinner" class="spinner" hidden></span>
+            <span id="checkout-card-btn-text">Pay Now</span>
+          </button>
+        </form>
+
+        <!-- PANEL B: Google Pay Demo Panel -->
+        <div id="checkout-gpay-panel" class="checkout-form" hidden>
+          <div class="gpay-sheet-card">
+            <div class="gpay-sheet-header">
+              <span class="gpay-sheet-title">Fast, one-tap checkout with Google Pay</span>
+              <span class="gpay-sheet-sub">Simulates a 1.5-second Google Pay biometric authentication</span>
+            </div>
+
+            <button type="button" id="google-pay-action-btn" class="btn-google-pay" aria-label="Pay with Google Pay">
+              <span id="gpay-spinner" class="spinner" hidden></span>
+              <span id="gpay-btn-content" class="gpay-btn-inner">
+                <span>Pay with</span>
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"/>
+                  <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"/>
+                  <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
+                  <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
+                </svg>
+                <span>Pay</span>
+              </span>
+              <span id="gpay-status-text" hidden>Authenticating Google Pay...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Payment Confirmation View ("Payment Successful — Demo Mode") -->
+      <div id="order-confirmation-view" class="confirmation-view" hidden>
+        <div class="confirm-badge-icon confirm-badge-animated" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <div class="confirm-demo-pill">Payment Successful — Demo Mode</div>
+        <h2 class="confirm-title">Order Confirmed!</h2>
+        <p class="confirm-subtitle" id="confirm-save-note">Order placed.</p>
+
+        <!-- Receipt Box -->
+        <div class="receipt-box">
+          <div class="receipt-meta-row">
+            <span>Order Number</span>
+            <div class="order-code-inline">
+              <strong id="confirm-order-code" class="order-code-value">DEMO-1011</strong>
+              <button type="button" id="copy-order-code-btn" class="btn-outline btn-xs">Copy</button>
+            </div>
+          </div>
+          <div class="receipt-meta-row">
+            <span>Payment Method</span>
+            <strong id="confirm-payment-method">Credit Card</strong>
+          </div>
+          <div class="receipt-divider"></div>
+          <div id="confirm-items-summary" class="confirm-items-list"></div>
+          <div class="receipt-divider"></div>
+          <div class="receipt-total-row">
+            <span>Total Paid (ZAR)</span>
+            <strong id="confirm-total-paid">R0.00</strong>
+          </div>
+        </div>
+
+        <div class="confirm-actions">
+          <button type="button" id="continue-shopping-btn" class="btn-outline">Continue Shopping</button>
+          <a href="orders.html" id="view-manage-order-btn" class="btn-primary" style="text-decoration: none;">
+            View &amp; Manage Order
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="supabase-public.example.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="store.js"></script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Returns Trade Agent — My orders</title>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="store.css" />
+  <!-- Supabase JS SDK v2 via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="orders-page">
+  <!-- ========================================================================
+       1. NAVIGATION BAR
+       ======================================================================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <!-- Left: Refund Logo & Brand Name -->
+      <a href="store.html" class="brand-link" aria-label="Returns Trade Agent">
+        <div class="app-logo" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 10H16C18.7614 10 21 12.2386 21 15C21 17.7614 18.7614 20 16 20H11" stroke="white"
+              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M7 6L3 10L7 14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Returns Trade Agent</span>
+          <span class="brand-tag">Orders and returns</span>
+        </div>
+      </a>
+
+      <!-- Center / Right: Navigation Links & Sign Out -->
+      <nav class="header-actions" aria-label="Primary Navigation">
+        <a href="store.html" class="nav-link-btn">
+          <span>← Back to Store</span>
+        </a>
+
+        <a href="orders.html" class="nav-link-btn is-active" aria-current="page">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <span>My Orders</span>
+          <span id="nav-orders-count" class="counter-badge counter-badge-inline" hidden>0</span>
+        </a>
+
+        <div class="user-menu">
+          <span id="engine-status-pill" class="engine-status-pill" title="ReplyEngine Status">
+            <span class="engine-dot"></span>
+            <span id="engine-status-text">ReplyEngine Ready</span>
+          </span>
+          <span id="user-email-pill" class="user-email-pill" title="Current session">Demo Mode</span>
+          <button type="button" id="sign-out-btn" class="btn-signout" title="Sign Out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span class="signout-label">Sign Out</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       2. MAIN ORDERS & REFUNDS CONTENT
+       ======================================================================== -->
+  <main class="store-main orders-page-main">
+    <!-- Page Header Card -->
+    <section class="store-hero-card">
+      <div class="hero-copy">
+        <h1 class="hero-title">My orders</h1>
+        <p class="hero-subtitle">
+          You can return a delivered item within 14 days. Sale items and food cannot be returned.
+        </p>
+        <div class="business-policy-strip">
+          <span>Monday to Friday 08:00–17:00</span>
+          <span>•</span>
+          <span>Saturday 09:00–13:00</span>
+          <span>•</span>
+          <span>Sunday closed</span>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-pill">
+          <span class="stat-label">Total Orders</span>
+          <strong id="stat-total-orders" class="stat-value">0</strong>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Refunds / Escalations</span>
+          <strong id="stat-refund-orders" class="stat-value">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Order Lookup & Filter Bar Card -->
+    <section class="orders-filter-card">
+      <div class="orders-lookup-row">
+        <div class="search-wrapper orders-search-box">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="search" id="order-search-input" class="search-input"
+            placeholder="Search by order number (TEST-2001) or item name..."
+            aria-label="Search orders by Order ID" />
+        </div>
+        <button type="button" id="clear-order-search-btn" class="btn-outline btn-sm" hidden>
+          Clear Search
+        </button>
+        <button type="button" id="refresh-orders-btn" class="btn-outline btn-sm">
+          ↻ Sync Orders
+        </button>
+      </div>
+
+      <!-- Status Filter Pills -->
+      <div class="filter-pills-row" role="tablist" aria-label="Filter orders by status">
+        <button type="button" class="filter-pill is-active" data-status-filter="all">
+          All Orders
+        </button>
+        <button type="button" class="filter-pill" data-status-filter="Processing">
+          Processing
+        </button>
+        <button type="button" class="filter-pill" data-status-filter="Completed">
+          Completed
+        </button>
+        <button type="button" class="filter-pill" data-status-filter="Refund Approved">
+          Refund Approved
+        </button>
+        <button type="button" class="filter-pill" data-status-filter="Escalated to Manager">
+          Escalated to Manager
+        </button>
+        <button type="button" class="filter-pill" data-status-filter="Cancelled">
+          Cancelled
+        </button>
+      </div>
+    </section>
+
+    <!-- Orders List -->
+    <section id="orders-list" class="orders-list-page" aria-live="polite">
+      <!-- Populated dynamically by orders.js -->
+    </section>
+  </main>
+
+  <!-- ========================================================================
+       3. AI REFUND CHATBOT, ADJUDICATION & MANAGER ESCALATION MODAL
+       ======================================================================== -->
+  <div id="refund-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="refund-modal-title"
+    hidden>
+    <div class="modal-card modal-card-chatbot">
+      <div class="modal-header chatbot-modal-header">
+        <div>
+          <div class="chatbot-badge-row">
+            <span class="chatbot-live-pill">
+              <span class="chatbot-live-dot"></span>
+              Return request
+            </span>
+            <span id="chatbot-mode-tag" class="chatbot-mode-tag">Database return rules</span>
+          </div>
+          <h2 id="refund-modal-title" class="modal-title">Request a return</h2>
+          <p id="refund-modal-subtitle" class="modal-subtitle">Order</p>
+        </div>
+        <button type="button" class="icon-close-btn" id="close-refund-modal-btn" aria-label="Close Refund Modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="chatbot-modal-grid">
+        <!-- LEFT COLUMN: Order Items, Reason & Refund Form -->
+        <div class="chatbot-form-col">
+          <form id="refund-form" class="checkout-form" novalidate>
+            <div id="refund-alert" class="inline-alert is-error" hidden></div>
+
+            <div class="form-group">
+              <label class="form-label">1. Select item(s) in this order to refund</label>
+              <div id="refund-items-checklist" class="refund-checklist">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="refund-reason" class="form-label">2. Return reason</label>
+              <select id="refund-reason" class="form-input" required>
+                <option value="">Choose a reason...</option>
+                <option value="Food arrived cold or damaged">Food arrived cold or damaged</option>
+                <option value="Item arrived damaged/cold">Item arrived damaged/cold</option>
+                <option value="Wrong item or size">Wrong item or size</option>
+                <option value="Changed my mind">Changed my mind (Non-defective)</option>
+                <option value="Order took too long">Order took too long</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <div class="label-row-between">
+                <label for="refund-notes" class="form-label">3. Additional Notes / Message to AI</label>
+                <span class="label-hint">Checked against SCAM_PATTERNS &amp; keywords</span>
+              </div>
+              <textarea id="refund-notes" class="form-input form-textarea" rows="3"
+                placeholder="Describe the issue (try mentioning 'chargeback', 'lawyer', or 'new bank account' to test ReplyEngine flags)..."></textarea>
+
+              <!-- Quick Demo Scenario Chips -->
+              <div class="scenario-chips-bar">
+                <span class="scenario-chips-label">Quick test:</span>
+                <button type="button" class="scenario-chip" data-preset-reason="Item arrived damaged/cold"
+                  data-preset-note="My item arrived damaged and cold, I have proof of payment from today.">
+                  ✓ Valid 14-day claim
+                </button>
+                <button type="button" class="scenario-chip" data-preset-reason="Changed my mind"
+                  data-preset-note="I wore the item outside and just changed my mind, no defect.">
+                  ✕ Policy Decline
+                </button>
+                <button type="button" class="scenario-chip" data-preset-reason="Order took too long"
+                  data-preset-note="This is unacceptable! I will file a chargeback or call my lawyer if not resolved!">
+                  ⚠️ Escalation Keyword
+                </button>
+                <button type="button" class="scenario-chip" data-preset-reason="Wrong item or size"
+                  data-preset-note="Please pay my refund into a new bank account via urgent EFT.">
+                  🛡️ Scam / Bank Redirect
+                </button>
+              </div>
+            </div>
+
+            <div class="refund-destination-notice">
+              <span>Refund Destination:</span>
+              <strong id="refund-destination-method">Original Payment Method (Credit Card)</strong>
+            </div>
+
+            <div class="checkout-summary-bar">
+              <div>
+                <span class="checkout-summary-label">Total Refund Amount</span>
+                <strong id="refund-estimated-amount" class="checkout-summary-total">R0.00</strong>
+              </div>
+              <button type="submit" id="submit-refund-btn" class="btn-primary">
+                <span id="refund-spinner" class="spinner" hidden></span>
+                <span id="refund-btn-text">Submit return</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- RIGHT COLUMN: AI Refund Chatbot, Decision Card & Post-Decision Escalation -->
+        <div class="chatbot-conversation-col">
+          <div class="chatbot-panel-header">
+            <div class="chatbot-panel-title">
+              <span class="bot-avatar-badge">AI</span>
+              <div>
+                <strong>Returns Trade Agent</strong>
+                <span class="chatbot-panel-sub">Policy: 14 days from delivery • Gauteng 2-5 days</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Stream -->
+          <div id="ai-chat-stream" class="ai-chat-stream" aria-live="polite">
+            <!-- Populated dynamically by orders.js -->
+          </div>
+
+          <!-- Interactive Chat Input (Ask ReplyEngine about hours, policies, or reply) -->
+          <form id="ai-chat-input-form" class="ai-chat-input-row" novalidate>
+            <input type="text" id="ai-chat-input" class="form-input ai-chat-text-input"
+              placeholder="Ask about refund policy, hours, delivery, or reply to AI..."
+              aria-label="Chat with Returns Trade Agent" />
+            <button type="submit" class="btn-outline btn-sm">Send</button>
+          </form>
+
+          <!-- ================================================================
+               POST-DECISION ACTION BAR ("Appeal Decision" & "Talk to a Person")
+               Shown immediately after AI displays REFUND APPROVED or DECLINED
+               ================================================================ -->
+          <div id="post-decision-actions" class="post-decision-actions" hidden>
+            <div id="needs-human-alert" class="needs-human-banner" hidden>
+              <span>⚠️ <strong>ReplyEngine Flagged Human Review:</strong> High-priority keyword or risk pattern
+                detected. We recommend escalating directly to a manager.</span>
+            </div>
+
+            <div class="post-decision-label">
+              Not satisfied with the AI outcome or need human assistance?
+            </div>
+
+            <div class="post-decision-btn-row">
+              <button type="button" id="btn-appeal-decision" class="btn-primary post-action-btn">
+                <span>⚖️ Appeal Decision</span>
+              </button>
+              <button type="button" id="btn-talk-person" class="btn-outline post-action-btn">
+                <span>👤 Talk to a Person</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ================================================================
+               APPEAL / HUMAN ESCALATION COMPOSER
+               Shown when customer clicks "Appeal Decision" or "Talk to a Person"
+               ================================================================ -->
+          <div id="escalation-composer" class="escalation-composer" hidden>
+            <div class="escalation-composer-header">
+              <strong id="escalation-composer-title">⚖️ Appeal Decision to Manager / Owner</strong>
+              <span class="escalation-recipient-pill">To: info@example.co.za</span>
+            </div>
+            <label for="escalation-final-note" class="form-label">
+              Add any final message for the manager (optional)
+            </label>
+            <textarea id="escalation-final-note" class="form-input form-textarea" rows="2"
+              placeholder="Explain why you are appealing or what you would like the manager to review..."></textarea>
+            <div class="escalation-composer-actions">
+              <button type="button" id="cancel-escalation-btn" class="btn-outline btn-sm">
+                Cancel
+              </button>
+              <button type="button" id="send-escalation-btn" class="btn-primary btn-sm">
+                <span id="escalation-spinner" class="spinner" hidden></span>
+                <span id="send-escalation-btn-text">Send to Manager / Owner (info@example.co.za)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ================================================================
+               MANAGER EMAIL DISPATCHED CONFIRMATION & PREVIEW CARD
+               ================================================================ -->
+          <div id="manager-email-card" class="manager-email-card" hidden>
+            <div class="manager-email-card-top">
+              <div class="manager-email-status">
+                <span class="manager-email-check">✓</span>
+                <div>
+                  <strong>Manager Email Dispatched</strong>
+                  <span id="manager-email-meta" class="manager-email-sub">Sent to info@example.co.za • Status: Escalated
+                    to Manager</span>
+                </div>
+              </div>
+              <span class="status-badge status-escalated">Escalated to Manager</span>
+            </div>
+
+            <div class="manager-email-actions">
+              <button type="button" id="toggle-email-preview-btn" class="btn-outline btn-xs">
+                Preview Sent Manager Email
+              </button>
+              <button type="button" id="copy-email-summary-btn" class="btn-outline btn-xs">
+                Copy Summary
+              </button>
+              <a id="mailto-fallback-link" href="mailto:info@example.co.za" class="btn-primary btn-xs mailto-btn-link">
+                ✉️ Open in Email Client (mailto:)
+              </a>
+            </div>
+
+            <div id="email-preview-container" class="email-preview-container" hidden>
+              <div class="email-preview-meta">
+                <div><strong>To:</strong> <span id="preview-email-to">info@example.co.za</span></div>
+                <div><strong>Subject:</strong> <span id="preview-email-subject"></span></div>
+              </div>
+              <pre id="preview-email-body" class="email-preview-pre"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="supabase-public.example.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="orders.js"></script>
+</body>
+
+</html>
