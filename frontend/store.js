@@ -1,3 +1,6 @@
+// Scoped to this page. Do not redeclare formatRand, STORAGE_KEYS, or supabaseClient;
+// supabase-config.js already owns those names in the shared global scope.
+(function () {
 /**
  * Refund — E-Commerce Storefront & Demo Checkout Controller (store.js)
  *
@@ -943,3 +946,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   setCategory('food');
   await initUserSession();
 });
+
+})();

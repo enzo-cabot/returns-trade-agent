@@ -1,3 +1,5 @@
+// Scoped to this page so its consts cannot clash with supabase-config.js.
+(function () {
 /**
  * ============================================================================
  * REFUND — Login & Sign-Up Controller (auth.js)
@@ -454,3 +456,5 @@ if (!isRecovery && supabaseAuthClient) {
     }
   });
 }
+
+})();

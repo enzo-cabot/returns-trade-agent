@@ -1,15 +1,16 @@
-// Public Supabase settings for the browser. The pages load this file.
-// Fill SUPABASE_ANON_KEY from `supabase status` for local dev.
-// Only the project URL and the anon/publishable key belong here.
+// Public Supabase settings. The HTML pages load this file.
 //
-// Only the project URL and the anon/publishable key belong here.
-// Never put the service-role key, a database password, or an AI API key in
-// this file. Anything in frontend JavaScript is visible to anyone who loads
-// the page.
+// Set SUPABASE_ANON_KEY here:
+//   - locally, paste the anon key from `supabase status`
+//   - on Netlify, edit this file before deploy (there is no build step, so a
+//     Netlify environment variable is not injected into the page)
+// The committed value stays the placeholder. This key is visible to anyone
+// who loads the site.
 //
-// Leave the key as the placeholder to run the pages in their offline demo.
-// Point SUPABASE_URL at local Supabase (supabase start). Do not point this
-// file at the hosted project.
+// Never put a service-role key, database password, Resend key, Slack webhook,
+// or Gmail app password in this file. Those belong in Supabase Edge Function
+// secrets (`supabase secrets set`), not in the frontend and not in Netlify.
+// Do not point SUPABASE_URL at the hosted project from this checkout.
 
 window.SUPABASE_PUBLIC_CONFIG = {
   SUPABASE_URL: "http://127.0.0.1:54321",

@@ -1,3 +1,6 @@
+// Scoped to this page. Do not redeclare BUSINESS_PROFILE, AI_CONFIG, ReplyEngineJS,
+// or supabaseClient; supabase-config.js already owns those names.
+(function () {
 /**
  * ============================================================================
  * REFUND — Orders, AI Refund Adjudicator, ReplyEngine & Manager Escalation (orders.js)
@@ -1674,3 +1677,5 @@ function initOrdersPage() {
 }
 
 document.addEventListener('DOMContentLoaded', initOrdersPage);
+
+})();

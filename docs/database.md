@@ -72,5 +72,12 @@ To add another channel later, add a `<channel>_sent_at` column and a send step i
 - Calls on behalf of a customer: Supabase REST API (`https://xgihyjvktkkjcroezqyx.supabase.co/rest/v1/`) with the publishable key and the user's access token, so the rules above apply.
 - Backend jobs (forwarding alerts, logging failed sign ins): the secret key, or a direct Postgres connection via JDBC using the connection string from the dashboard (Project Settings, Database).
 
+## Frontend
+The static site lives in `frontend/`. Netlify publishes that folder with no build step (`netlify.toml`).
+
+The browser only receives the project URL and the anon/publishable key, from `frontend/supabase-public.example.js`. The committed key is the placeholder `YOUR_SUPABASE_ANON_PUBLIC_KEY`. For local Supabase, replace that placeholder with the anon key printed by `supabase status`. For a Netlify deploy, edit the same file before publishing. There is no build, so a Netlify environment variable is not substituted into the page.
+
+The service role key, Resend, Slack, and Gmail credentials stay in Supabase Edge Function secrets (`supabase secrets set`). They do not go in the frontend or in Netlify.
+
 ## Running locally
-`supabase start` then `supabase db reset` rebuilds the database with the dummy data. Local email confirmation is off; on the live project it is on.
+`supabase start` then `supabase db reset` rebuilds the database with the dummy data. Local email confirmation is off; on the live project it is on. Serve the site with `python3 -m http.server 3000` from `frontend/`.

@@ -1,0 +1,11 @@
+# Static site. Netlify publishes frontend/ as-is. There is no build command,
+# so Netlify environment variables are not injected into the pages.
+#
+# Anon/publishable key: edit the placeholder in
+# frontend/supabase-public.example.js (local `supabase status`, or the same
+# file before a deploy). That key is public in the browser.
+#
+# Service role key, Resend, Slack, and Gmail stay in Supabase Edge Function
+# secrets (`supabase secrets set`). Do not put them here or in the frontend.
+[build]
+  publish = "frontend"
