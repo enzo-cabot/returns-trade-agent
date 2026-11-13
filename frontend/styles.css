@@ -10,6 +10,13 @@
   padding: 0;
 }
 
+/* Author rules such as .login-form { display: flex } beat the user-agent
+   [hidden] style. This keeps hidden forms, including #reset-password-form,
+   off the page until script removes the attribute. */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --bg-page: #fafafa;
   --dot-color: #d8d8d8;

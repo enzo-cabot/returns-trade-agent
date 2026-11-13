@@ -10,6 +10,8 @@ On sign up the database automatically:
 - links any shop `orders` with the same email to the new user,
 - writes a `sign_up` row to `login_logs`.
 
+The seed creates orders for demo emails such as `customer.one@example.com`, and it does not create auth users. On a fresh hosted project those orders stay unlinked until someone creates the auth user for that email. Create it in the Supabase dashboard with auto-confirm so they can sign in without a confirmation email. Until that user exists, signing in as the demo email fails. Creating the user runs the sign-up trigger, which links the matching orders.
+
 Every successful sign in writes a `sign_in` row. Note that a sign up with email confirmation off also counts as a first sign in. Failed sign ins and sign outs are not visible to the database. The frontend posts them to the Edge Function `log-auth-event`, which calls `log_auth_event(event, email, user_id, ip_address, user_agent)` with the service key. The browser never receives that key. A backend can call the same function directly. Pass IP and device there too. The function accepts only `sign_in_failed` and `sign_out`.
 
 ## Tables

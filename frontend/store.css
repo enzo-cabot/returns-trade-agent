@@ -47,6 +47,7 @@
   --info-text: #1d4ed8;
 }
 
+/* Beats author display rules (for example display:flex) so [hidden] stays hidden. */
 [hidden] {
   display: none !important;
 }
