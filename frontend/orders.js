@@ -511,7 +511,7 @@ function renderOrdersPage() {
         <div class="empty-icon">🧾</div>
         <h2 class="empty-title">No matching orders found</h2>
         <p class="empty-subtitle">
-          Try clearing your search filter or selecting "All Orders" to view DEMO-1001 through DEMO-1010.
+          Try clearing the search or choosing All orders.
         </p>
         <div style="display:flex;justify-content:center;gap:10px;">
           <button type="button" id="empty-reset-filters-btn" class="btn-outline btn-sm">Reset Filters</button>
@@ -779,7 +779,7 @@ function appendChatMessage(role, text, extraHtml = '') {
   });
 
   state.chatTranscript.push({
-    role: role === 'user' ? 'Customer' : 'Refund AI',
+    role: role === 'user' ? 'Customer' : 'Returns Trade Agent',
     text,
     timestamp,
   });
@@ -788,7 +788,7 @@ function appendChatMessage(role, text, extraHtml = '') {
   wrapper.className = `chat-msg ${role === 'user' ? 'chat-msg-user' : 'chat-msg-bot'}`;
   wrapper.innerHTML = `
     <span class="chat-msg-sender">${
-      role === 'user' ? 'You (Customer)' : 'Refund AI • ReplyEngine'
+      role === 'user' ? 'You (Customer)' : 'Returns Trade Agent'
     } • ${timestamp}</span>
     <div class="chat-msg-bubble">${escapeHtml(text)}</div>
     ${extraHtml}
@@ -806,7 +806,7 @@ function showChatTypingIndicator() {
   typingEl.className = 'chat-msg chat-msg-bot';
   typingEl.id = 'ai-typing-indicator';
   typingEl.innerHTML = `
-    <span class="chat-msg-sender">Refund AI is evaluating your request...</span>
+    <span class="chat-msg-sender">Returns Trade Agent is checking your request...</span>
     <div class="typing-indicator-bubble" aria-label="AI is typing">
       <span class="typing-dot"></span>
       <span class="typing-dot"></span>
@@ -827,8 +827,8 @@ function buildDecisionCardHtml(adjudication, refundAmount, waybillInfo = null) {
   const isApproved = adjudication.decision === 'APPROVED';
   const cardClass = isApproved ? 'is-approved' : 'is-declined';
   const badgeLabel = isApproved
-    ? '✓ REFUND APPROVED'
-    : '✕ REFUND DECLINED';
+    ? 'Return approved'
+    : 'Return not accepted';
   const flagsArr = Array.isArray(adjudication.flags) ? adjudication.flags : [];
 
   const flagsHtml =
@@ -837,13 +837,6 @@ function buildDecisionCardHtml(adjudication, refundAmount, waybillInfo = null) {
           .map((fl) => `<span class="diag-pill is-flag">⚠️ ${escapeHtml(fl)}</span>`)
           .join('')
       : `<span class="diag-pill">Flags: None</span>`;
-
-  const waybillHtml =
-    isApproved && waybillInfo
-      ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,0.12);font-size:11.5px;color:#166534;">
-           📦 <strong>Courier Collection Booked:</strong> ${escapeHtml(waybillInfo.courier_name)} • Waybill <code class="inline-code">${escapeHtml(waybillInfo.tracking_number)}</code> (ETA: ${escapeHtml(waybillInfo.eta_date)})
-         </div>`
-      : '';
 
   return `
     <div class="ai-decision-card ${cardClass}">
@@ -861,7 +854,6 @@ function buildDecisionCardHtml(adjudication, refundAmount, waybillInfo = null) {
         <span class="diag-pill">Order Age: ${adjudication.days_since_purchase ?? 0}d</span>
         ${flagsHtml}
       </div>
-      ${waybillHtml}
     </div>
   `;
 }
@@ -991,21 +983,20 @@ function openRefundModal(orderNumber) {
 
   appendChatMessage(
     'bot',
-    `Hello! Welcome to ${BUSINESS_PROFILE.name}. Select the item(s) and reason on the left and click "Submit Refund" to run an instant AI refund evaluation, or ask me any question below.\n\nPolicy: "${BUSINESS_PROFILE.policies.refund}"`
+    `Hello! Welcome to ${BUSINESS_PROFILE.name}. Choose an item and a reason, then submit the return. It stays submitted until our team reviews it.\n\nPolicy: "${BUSINESS_PROFILE.policies.refund}"`
   );
 
   if (existingReturn) {
     state.activeReturnRecord = existingReturn;
+    const status = existingReturn.status || 'submitted';
     const restoredAdjudication = {
-      decision: existingReturn.ai_decision || (existingReturn.status === 'approved' ? 'APPROVED' : 'DECLINED'),
-      decision_reason:
-        existingReturn.ai_reason ||
-        `Evaluated under policy: ${BUSINESS_PROFILE.policies.refund}`,
+      decision: status === 'approved' || status === 'refunded' ? 'APPROVED' : status === 'rejected' ? 'DECLINED' : 'SUBMITTED',
+      decision_reason: `Database status: ${status}.`,
       intent: 'refund',
       confidence: 0.9,
       flags: existingReturn.flags || [],
       days_since_purchase: 0,
-      needs_human: existingReturn.status === 'rejected',
+      needs_human: status === 'rejected',
       refund_amount: existingReturn.refund_amount || order.total_amount,
       reason: existingReturn.reason,
     };
@@ -1013,10 +1004,11 @@ function openRefundModal(orderNumber) {
 
     appendChatMessage(
       'bot',
-      `Previous AI Decision for ${orderNum}: ${restoredAdjudication.decision}.`,
-      buildDecisionCardHtml(restoredAdjudication, restoredAdjudication.refund_amount)
+      `This return is ${status}${status === 'submitted' ? ' and awaiting review' : ''}.`
     );
-    renderPostDecisionActionButtons(restoredAdjudication);
+    if (status === 'rejected' || status === 'approved' || status === 'refunded') {
+      renderPostDecisionActionButtons(restoredAdjudication);
+    }
 
     if (existingEscalation) {
       showDispatchedEmailCard({
@@ -1160,9 +1152,8 @@ async function handleRefundSubmit(event) {
 
     removeChatTypingIndicator();
 
-    // 4. Persist to public.returns & public.return_logs via RefundBackend
+    // 4. The database records the return as submitted. This screen does not approve it.
     let createdReturns = [];
-    let waybillInfo = null;
     if (Backend) {
       createdReturns = await Backend.createReturnRecords({
         order,
@@ -1175,11 +1166,6 @@ async function handleRefundSubmit(event) {
         refundAmount,
       });
       state.activeReturnRecord = createdReturns[0] || null;
-
-      if (adjudication.decision === 'APPROVED' && state.activeReturnRecord) {
-        waybillInfo = Backend.mockCourierTracking(state.activeReturnRecord.id, 'The Courier Guy');
-      }
-
       state.returns = Backend.fetchAccountReturns
         ? await Backend.fetchAccountReturns()
         : Backend.getAllReturns();
@@ -1187,6 +1173,8 @@ async function handleRefundSubmit(event) {
 
     state.activeAdjudication = {
       ...adjudication,
+      decision: 'SUBMITTED',
+      decision_reason: 'The return was received and is awaiting review.',
       selected_items: selectedNames,
       reason,
       notes,
@@ -1195,6 +1183,7 @@ async function handleRefundSubmit(event) {
 
     const confirmationHtml = (createdReturns || [])
       .map((ret) => {
+        const status = ret.status || 'submitted';
         const logs = Array.isArray(ret.return_logs) ? ret.return_logs : [];
         const logHtml = logs.length
           ? `<ul class="return-status-history" style="margin:8px 0 0;padding-left:18px;">${logs
@@ -1207,25 +1196,27 @@ async function handleRefundSubmit(event) {
         return `
           <div class="refund-tracker-box return-confirmation" data-return-id="${escapeHtml(
             ret.id
-          )}" data-return-status="${escapeHtml(ret.status)}">
+          )}" data-return-status="${escapeHtml(status)}">
             <strong>Return received</strong>
             <div>Reference: <code class="inline-code">${escapeHtml(ret.id)}</code></div>
-            <div>Status: <strong>${escapeHtml(ret.status)}</strong></div>
+            <div>Status: <strong>${escapeHtml(status)}</strong> — awaiting review</div>
+            <div>We email you when the status changes. Collection is arranged only after approval.</div>
             ${logHtml ? `<div>Status history</div>${logHtml}` : ''}
           </div>`;
       })
       .join('');
 
-    // 5. Render AI Reply + Decision Card, with the database confirmation first.
-    const decisionCardHtml =
-      confirmationHtml + buildDecisionCardHtml(adjudication, refundAmount, waybillInfo);
-    appendChatMessage('bot', adjudication.reply, decisionCardHtml);
+    appendChatMessage(
+      'bot',
+      `We received your return for ${orderNum}. Status: submitted. It is awaiting review. Only our team can approve, reject, or refund it.`,
+      confirmationHtml
+    );
 
     // 6. Immediately display Post-Decision Action Bar ("⚖️ Appeal Decision" & "👤 Talk to a Person")
     renderPostDecisionActionButtons(adjudication);
 
     renderOrdersPage();
-    showToast(`AI Decision for ${orderNum}: REFUND ${adjudication.decision}`);
+    showToast(`Return submitted for ${orderNum}. Awaiting review.`);
   } catch (err) {
     removeChatTypingIndicator();
     const message = err?.message || 'Could not submit the return.';

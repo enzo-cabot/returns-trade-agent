@@ -297,7 +297,7 @@
               <span class="demo-mode-badge">Demo Checkout • South African Rand (R)</span>
             </div>
             <h2 id="checkout-modal-title" class="modal-title">Select Payment Method</h2>
-            <p class="modal-subtitle">Saves to <code class="inline-code">public.orders</code> &amp; <code class="inline-code">public.order_items</code></p>
+            <p class="modal-subtitle">Places the order on your account. New orders start as pending.</p>
           </div>
           <button type="button" class="icon-close-btn" id="close-checkout-btn" aria-label="Close Checkout">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -436,7 +436,7 @@
 
         <div class="confirm-demo-pill">Payment Successful — Demo Mode</div>
         <h2 class="confirm-title">Order Confirmed!</h2>
-        <p class="confirm-subtitle">Saved to <code class="inline-code">public.orders</code> &amp; ready for tracking or AI refund evaluation.</p>
+        <p class="confirm-subtitle" id="confirm-save-note">Order placed.</p>
 
         <!-- Receipt Box -->
         <div class="receipt-box">

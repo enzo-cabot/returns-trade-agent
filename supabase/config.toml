@@ -434,3 +434,7 @@ verify_jwt = false
 # sign_in_failed and sign_out, using the service role it already has.
 [functions.log-auth-event]
 verify_jwt = false
+
+# The database timer calls this with a shared secret, not a user login.
+[functions.notify-return-events]
+verify_jwt = false

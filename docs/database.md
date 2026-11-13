@@ -12,6 +12,8 @@ On sign up the database automatically:
 
 The seed creates orders for demo emails such as `customer.one@example.com`, and it does not create auth users. On a fresh hosted project those orders stay unlinked until someone creates the auth user for that email. Create it in the Supabase dashboard with auto-confirm so they can sign in without a confirmation email. Until that user exists, signing in as the demo email fails. Creating the user runs the sign-up trigger, which links the matching orders.
 
+Hosted sign-up email uses Supabase's built-in mailer, which stops after a few messages with "email rate limit exceeded". Set a custom SMTP provider in the Supabase dashboard (Authentication → SMTP). This project uses Resend for that. The Resend API key stays in the Supabase SMTP settings or in Edge Function secrets. It does not go in the frontend or in Netlify. Local `supabase start` catches mail instead of sending it.
+
 Every successful sign in writes a `sign_in` row. Note that a sign up with email confirmation off also counts as a first sign in. Failed sign ins and sign outs are not visible to the database. The frontend posts them to the Edge Function `log-auth-event`, which calls `log_auth_event(event, email, user_id, ip_address, user_agent)` with the service key. The browser never receives that key. A backend can call the same function directly. Pass IP and device there too. The function accepts only `sign_in_failed` and `sign_out`.
 
 ## Tables
@@ -36,7 +38,20 @@ Every successful sign in writes a `sign_in` row. Note that a sign up with email 
 - quantity not more than bought,
 - no other open return for that item (rejected or cancelled ones do not count).
 
-New returns always start as `submitted`. Only staff can change status.
+New returns always start as `submitted`. Only an employee can change `returns.status` (row level security). The customer screens never approve a return.
+
+Each status, including the first `submitted` row, is written to `return_logs` and queued in `return_notifications`. That outbox stores the order number, item, status, and who it is for, plus `customer_sent_at`, `owner_sent_at`, `slack_sent_at`, `attempts`, `last_error`, and `sent_at` (set only when all three sends succeeded). A failed send stays visible and is retried, up to 5 attempts. Once a minute `invoke_return_notifications()` calls the Edge Function `notify-return-events` when a row is waiting. The function URL and shared secret live in Vault as `notify_return_function_url` and `notify_return_secret`. Until both are set, the timer does nothing.
+
+Customers place a new shop order with `place_order` (pending, or delivered only when `p_demo` is true). They cannot insert into `orders` directly.
+
+`notify-return-events` reads these Edge Function secrets (`supabase secrets set`). None of them belong in the frontend or in Netlify:
+
+- `NOTIFY_RETURN_SECRET` (same value as Vault `notify_return_secret`)
+- `RESEND_API_KEY` and `EMAIL_FROM` (Resend), or `GMAIL_ADDRESS` and `GMAIL_APP_PASSWORD` (Gmail SMTP on port 465)
+- `SLACK_RETURNS_WEBHOOK`
+- `OWNER_EMAIL`
+
+Optional: `EMAIL_FROM_NAME`, `BRAND_NAME`. `NOTIFY_MODE=mock` skips the network and is only for a local test. Vault also needs `notify_return_function_url` (the function URL) before the timer will call it.
 
 The number 14 lives only in `return_window_days()`. `return_decision()` is the only copy of the checks. The insert trigger raises that function's `reason`. Signed-in customers read the same decision, per item, with `customer_return_eligibility(quantity)` and the wording with `return_policy()`. A partial unique index stops two open returns for one item from both being inserted at once.
 

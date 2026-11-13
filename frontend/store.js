@@ -256,10 +256,10 @@ function setCategory(category) {
       'Order gourmet burgers, wood-fired pizza, pasta, and craft combos in South African Rand (R). Food cannot be returned.';
     dom.catalogHeading.textContent = '🍔 Food Menu';
   } else {
-    dom.heroCategoryTag.textContent = 'RETURNS TRADE AGENT • APPAREL';
+    dom.heroCategoryTag.textContent = 'Apparel';
     dom.heroTitle.textContent = 'Everyday Streetwear & Tailored Essentials';
     dom.heroSubtitle.textContent =
-      'Matches the exact SKU items in public.order_items (SKU-TSHIRT-M, SKU-JEANS-32, SKU-HOODIE-L, SKU-DRESS-S, SKU-JACKET-XL).';
+      'Delivered clothes can be returned within 14 days. Sale items cannot be returned.';
     dom.catalogHeading.textContent = '👕 Clothes Collection';
   }
 
@@ -679,18 +679,19 @@ async function processDemoPayment(paymentMethodLabel) {
   const shopName = 'Returns Trade Agent';
 
   let createdOrder = null;
-  if (window.RefundBackend) {
+  try {
+    if (!window.RefundBackend) throw new Error('Checkout is not available.');
     createdOrder = await window.RefundBackend.createOrderWithItems({
       shopName,
-      customerEmail: state.user?.email || 'customer.one@example.com',
-      totalAmount: total,
-      paymentMethod: paymentMethodLabel,
-      shippingAddress,
       items: itemsSnapshot,
+      demo: false,
     });
+  } catch (err) {
+    showToast(err?.message || 'The order was not saved.');
+    return;
   }
 
-  const orderCode = createdOrder?.order_number || `DEMO-${Math.floor(1011 + Math.random() * 8900)}`;
+  const orderCode = createdOrder.order_number;
   state.lastConfirmedOrder = {
     order_number: orderCode,
     payment_method: paymentMethodLabel,
@@ -705,6 +706,12 @@ async function processDemoPayment(paymentMethodLabel) {
   updateHeaderBadges();
 
   // Render Confirmation Receipt
+  const saveNote = document.getElementById('confirm-save-note');
+  if (saveNote) {
+    saveNote.textContent = createdOrder.persisted
+      ? `Saved to your account. Status: ${createdOrder.status}.`
+      : 'Saved on this device only. The database is not connected, so this order is not on your account.';
+  }
   dom.confirmOrderCode.textContent = orderCode;
   dom.confirmPaymentMethod.textContent = paymentMethodLabel;
   dom.confirmTotalPaid.textContent = formatRand(total);

@@ -973,7 +973,7 @@ const ReplyEngineJS = (() => {
   }
 
   function _draft(intent, biz = BUSINESS_PROFILE, flagList = []) {
-    const name = biz.name || 'Refund';
+    const name = biz.name || 'Returns Trade Agent';
     const sign = biz.signoff || `Kind regards,\nThe Returns Trade Agent Team`;
     const ct = biz.contact || {};
     const reach = `You can reach us on ${ct.phone || '+27 11 000 0000'} or ${ct.email || 'info@example.co.za'}.`;
@@ -1219,10 +1219,6 @@ async function fetchOrdersWithItems() {
   });
 }
 
-/**
- * Generates a unique Order ID (`REF-2026-XXXXX`) and saves the order + `order_items`
- * to Supabase (`public.orders`, `public.order_items`) and `localStorage`.
- */
 function dbItemCategory(item) {
   const raw = String(item?.category || '').toLowerCase();
   const sku = String(item?.sku || '');
@@ -1232,111 +1228,70 @@ function dbItemCategory(item) {
 
 async function createOrderWithItems({
   shopName = 'Returns Trade Agent',
-  customerEmail,
-  paymentMethod = 'Credit Card',
-  shippingAddress = '123 Example Street, Sandton, Johannesburg',
   items = [],
+  demo = false,
 }) {
   const user = await getActiveSessionUser();
-  const seeded = ensureSeededDatabase();
+  const payload = (items || []).map((item) => ({
+    sku: item.sku || item.productId,
+    product_name: item.product_name || item.title || item.name,
+    quantity: Number(item.quantity || 1),
+    unit_price: Number(item.unit_price ?? item.price ?? 0),
+    on_sale: Boolean(item.on_sale),
+    category: dbItemCategory(item),
+  }));
 
-  const existingNumbers = new Set(seeded.orders.map((o) => o.order_number));
-  let randomNum = Math.floor(10500 + Math.random() * 89000);
-  while (existingNumbers.has(`REF-2026-${randomNum}`)) {
-    randomNum = Math.floor(10500 + Math.random() * 89000);
+  if (supabaseClient) {
+    if (!user?.id) {
+      throw new Error('Sign in before placing an order.');
+    }
+    const { data, error } = await supabaseClient.rpc('place_order', {
+      p_items: payload,
+      p_shop_name: shopName,
+      p_demo: Boolean(demo),
+    });
+    if (error) throw new Error(friendlyDbMessage(error));
+    const saved = {
+      ...data,
+      id: data.id,
+      order_number: data.order_number,
+      order_code: data.order_number,
+      status: data.status,
+      total_amount: Number(data.total_amount),
+      customer_email: data.customer_email,
+      order_items: data.items || [],
+      items: data.items || [],
+      persisted: true,
+    };
+    return saved;
   }
-  const orderNumber = `REF-2026-${randomNum}`;
-  const orderId = crypto.randomUUID ? crypto.randomUUID() : `ord-${Date.now()}`;
-  const nowIso = new Date().toISOString();
 
-  const totalAmount = items.reduce(
-    (sum, item) =>
-      sum + Number(item.unit_price ?? item.price ?? 0) * Number(item.quantity || 1),
+  const seeded = ensureSeededDatabase();
+  const orderNumber = `LOCAL-${Date.now().toString().slice(-6)}`;
+  const nowIso = new Date().toISOString();
+  const totalAmount = payload.reduce(
+    (sum, item) => sum + item.unit_price * item.quantity,
     0
   );
-
   const newOrder = {
-    id: orderId,
+    id: crypto.randomUUID ? crypto.randomUUID() : `ord-${Date.now()}`,
     order_number: orderNumber,
     order_code: orderNumber,
     shop_name: shopName,
-    customer_email: customerEmail || user?.email || 'customer.one@example.com',
-    user_id: user?.id || '00000000-0000-0000-0000-000000000001',
+    customer_email: user?.email || 'customer.one@example.com',
+    user_id: user?.id || null,
     status: 'pending',
-    display_status: 'Processing',
     ordered_at: nowIso,
-    delivered_at: nowIso,
+    delivered_at: null,
     total_amount: Number(totalAmount.toFixed(2)),
     currency: 'ZAR',
-    payment_method: paymentMethod,
-    shipping_address: shippingAddress,
-    created_at: nowIso,
-    updated_at: nowIso,
+    order_items: payload,
+    items: payload,
+    persisted: false,
   };
-
-  const newOrderItems = items.map((item, idx) => ({
-    id: crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${idx}`,
-    order_id: orderId,
-    order_number: orderNumber,
-    sku: item.sku || item.productId || `SKU-ITEM-${idx + 1}`,
-    product_name: item.product_name || item.title || item.name,
-    name: item.title || item.product_name || item.name,
-    quantity: Number(item.quantity || 1),
-    unit_price: Number(item.unit_price ?? item.price ?? 0),
-    price: Number(item.unit_price ?? item.price ?? 0),
-    on_sale: Boolean(item.on_sale),
-    category: item.category || 'food',
-    image_url: item.image || item.image_url || getProductImageForSku(item.sku),
-    created_at: nowIso,
-  }));
-
   seeded.orders.unshift(newOrder);
-  seeded.orderItems.unshift(...newOrderItems);
   saveJson(STORAGE_KEYS.ORDERS, seeded.orders);
-  saveJson(STORAGE_KEYS.ORDER_ITEMS, seeded.orderItems);
-
-  if (supabaseClient && user?.id) {
-    try {
-      const { data: insertedOrder, error: ordErr } = await supabaseClient
-        .from('orders')
-        .insert({
-          order_number: newOrder.order_number,
-          shop_name: newOrder.shop_name,
-          customer_email: newOrder.customer_email,
-          user_id: user.id,
-          status: 'delivered',
-          ordered_at: newOrder.ordered_at,
-          delivered_at: newOrder.delivered_at,
-          total_amount: newOrder.total_amount,
-          currency: 'ZAR',
-        })
-        .select()
-        .single();
-
-      if (!ordErr && insertedOrder?.id) {
-        newOrder.id = insertedOrder.id;
-        await supabaseClient.from('order_items').insert(
-          newOrderItems.map((it) => ({
-            order_id: insertedOrder.id,
-            sku: it.sku,
-            product_name: it.product_name,
-            quantity: it.quantity,
-            unit_price: it.unit_price,
-            on_sale: it.on_sale,
-            category: dbItemCategory(it),
-          }))
-        );
-      }
-    } catch (dbErr) {
-      console.warn('[RefundBackend] Saved new order to localStorage fallback:', dbErr);
-    }
-  }
-
-  return {
-    ...newOrder,
-    order_items: newOrderItems,
-    items: newOrderItems,
-  };
+  return newOrder;
 }
 
 async function cancelOrderInBackend(orderNumber) {
@@ -1603,12 +1558,21 @@ async function createContactEscalation({
   return contactRow;
 }
 
+function missingRpc(error) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  return code === 'PGRST202' || code === '404' || /could not find the function|does not exist|404/i.test(message);
+}
+
 async function fetchReturnEligibility(quantity = 1) {
   if (!supabaseClient) return [];
   const { data, error } = await supabaseClient.rpc('customer_return_eligibility', {
     p_quantity: quantity,
   });
-  if (error) throw new Error(friendlyDbMessage(error));
+  if (error) {
+    if (missingRpc(error)) return [];
+    throw new Error(friendlyDbMessage(error));
+  }
   return data || [];
 }
 
@@ -1616,7 +1580,7 @@ async function fetchReturnPolicy() {
   if (!supabaseClient) return null;
   const { data, error } = await supabaseClient.rpc('return_policy');
   if (error) {
-    console.warn('[RefundBackend] return policy:', error.message);
+    if (!missingRpc(error)) console.warn('[RefundBackend] return policy:', error.message);
     return null;
   }
   return data;
