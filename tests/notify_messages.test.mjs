@@ -57,3 +57,41 @@ test("every status has a next step", () => {
     assert.ok(nextSteps(status).length > 10, status);
   }
 });
+
+const cancellation = {
+  id: "note-1",
+  kind: "order_cancellation",
+  cancellation_id: "can-1",
+  return_id: null,
+  new_status: "cancelled",
+  old_status: null,
+  customer_email: "buyer@example.com",
+  customer_name: "Buyer",
+  order_number: "TEST-6652",
+  product_name: "Coach Jacket",
+  quantity: 1,
+  amount: "890.00",
+  reason: "Order took too long",
+};
+
+test("order cancellation emails say the item will not ship and show the amount", () => {
+  const mail = customerEmail(cancellation, "Returns Trade Agent");
+  assert.equal(mail.to, "buyer@example.com");
+  assert.equal(mail.subject, "Your item was cancelled (order TEST-6652)");
+  assert.match(mail.text, /Cancelled before shipping/);
+  assert.match(mail.text, /1 x Coach Jacket/);
+  assert.match(mail.text, /R890\.00/);
+  assert.match(mail.text, /can-1/);
+  assert.doesNotMatch(mail.text, /null/);
+  const owner = ownerEmail(cancellation, "Returns Trade Agent");
+  assert.equal(owner.subject, "Item cancelled before shipping — TEST-6652");
+  assert.match(owner.text, /Do not pack or ship/);
+  const slack = slackText(cancellation);
+  assert.match(slack, /TEST-6652/);
+  assert.match(slack, /R890\.00/);
+});
+
+test("rows without a kind are still treated as returns", () => {
+  const mail = customerEmail({ ...note, kind: undefined }, "Returns Trade Agent");
+  assert.match(mail.subject, /return request/);
+});

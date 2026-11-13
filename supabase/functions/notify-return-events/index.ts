@@ -1,4 +1,4 @@
-// Sends queued return notifications:
+// Sends queued return and order-cancellation notifications:
 //   - email to the customer (order, item, status, next step)
 //   - email to the store owner
 //   - a Slack message on the returns webhook
@@ -28,7 +28,10 @@ const MOCK = Deno.env.get("NOTIFY_MODE") === "mock";
 
 type Note = {
   id: string;
-  return_id: string;
+  kind?: string; // "return" (default) or "order_cancellation"
+  return_id: string | null;
+  cancellation_id?: string | null;
+  amount?: number | string | null;
   old_status: string | null;
   new_status: string;
   customer_email: string;

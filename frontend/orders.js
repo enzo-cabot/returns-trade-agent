@@ -99,6 +99,7 @@ const state = {
   lastEmailSummaryPayload: null,
   pythonBackendOnline: false,
   eligibility: [],
+  lastBlock: null,
 };
 
 // ============================================================================
@@ -242,6 +243,182 @@ function eligibilityForItem(item) {
     };
   }
   return null;
+}
+
+// Units of a line that were not cancelled before shipping.
+function activeQty(item) {
+  return Math.max(0, Number(item?.quantity || 1) - Number(item?.cancelled_quantity || 0));
+}
+
+// Plain-words explanation and next step for a blocked return.
+// The database decides; this only explains its reason code.
+function blockedReturnHelp(code, order, item, decision) {
+  const orderNum = order?.order_number || order?.order_code || 'this order';
+  const status = String(order?.status || '').toLowerCase();
+  const itemName = item ? item.product_name || item.name || 'this item' : 'this item';
+  const windowDays = decision?.window_days || 14;
+  const amount = item ? formatCurrency(Number(item.unit_price ?? item.price ?? 0) * activeQty(item)) : '';
+  const appeal = 'If it arrived faulty or damaged, tap "Appeal decision" and a person on our team will look at it.';
+  switch (code) {
+    case 'not_delivered':
+      if (status === 'pending') {
+        return {
+          canCancel: true,
+          text:
+            `Order ${orderNum} has not shipped yet, so there is nothing to return. ` +
+            (item
+              ? `You can cancel ${itemName} instead: it will not be sent${amount ? ` and ${amount} comes off your order` : ''}. ` +
+                'Tap "Cancel this item instead" below.'
+              : 'You can cancel any item on it instead: it will not be sent and the amount comes off your order. Use a cancel button below.'),
+        };
+      }
+      if (status === 'shipped') {
+        return {
+          text:
+            `Order ${orderNum} is already on its way to you, so it can no longer be cancelled and cannot be returned yet. ` +
+            `Once it is delivered you have ${windowDays} days to request a return here. ` +
+            'You can also refuse the parcel at the door and it comes straight back to us.',
+        };
+      }
+      if (status === 'cancelled') {
+        return { text: `Order ${orderNum} was cancelled, so there is nothing to return.` };
+      }
+      return { text: `Order ${orderNum} has not been delivered yet. Returns open once it is delivered.` };
+    case 'item_cancelled':
+      return { text: `${itemName} was already cancelled before shipping, so there is nothing to return.` };
+    case 'past_window':
+      return {
+        appeal: true,
+        text:
+          `${itemName} was delivered ${decision?.days_since_delivery ?? 'more than ' + windowDays} days ago, ` +
+          `past our ${windowDays}-day return window, so it cannot be returned automatically. ${appeal}`,
+      };
+    case 'on_sale':
+      return { appeal: true, text: `${itemName} was bought on sale, and sale items cannot be returned. ${appeal}` };
+    case 'food':
+      return { appeal: true, text: `${itemName} is a food item, and food cannot be returned. ${appeal}` };
+    case 'open_return':
+      return {
+        text: `There is already an open return for ${itemName}. We email you each time its status changes, so there is no need to submit it again.`,
+      };
+    case 'quantity':
+      return { text: `You chose more of ${itemName} than is left on the order. Choose a smaller quantity and submit again.` };
+    case 'not_owner':
+      return { text: 'This order is not on your account. Sign in with the email you ordered with.' };
+    default:
+      return { appeal: true, text: `${decision?.reason || 'This return was not accepted.'} Tap "Talk to a person" if you need help.` };
+  }
+}
+
+function blockedCodeFromMessage(message) {
+  const m = String(message || '').toLowerCase();
+  if (m.includes('not been delivered')) return 'not_delivered';
+  if (m.includes('within') && m.includes('days of delivery')) return 'past_window';
+  if (m.includes('on sale')) return 'on_sale';
+  if (m.includes('food')) return 'food';
+  if (m.includes('already exists')) return 'open_return';
+  if (m.includes('more items than')) return 'quantity';
+  if (m.includes('does not belong')) return 'not_owner';
+  return null;
+}
+
+function cancelActionHtml(order, items, perItem = false) {
+  const open = items.filter((it) => it && it.id && activeQty(it) > 0);
+  if (!open.length) return '';
+  const button = (lines, label) =>
+    `<button type="button" class="btn-primary btn-sm" data-cancel-items="${escapeHtml(
+      JSON.stringify(lines.map((it) => ({ order_item_id: it.id, quantity: activeQty(it) })))
+    )}" data-cancel-order-id="${escapeHtml(order.id)}">${escapeHtml(label)}</button>`;
+  const buttons =
+    perItem && open.length > 1
+      ? open.map((it) => button([it], `Cancel ${it.product_name || it.name || 'item'}`)).join('')
+      : button(open, open.length > 1 ? 'Cancel these items instead' : 'Cancel this item instead');
+  return `<div class="chat-cancel-actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">${buttons}</div>`;
+}
+
+// Explains the block in the chat and offers the next step.
+function explainBlockedReturn(order, items, fallbackMessage) {
+  let picked = null;
+  for (const it of items) {
+    const d = eligibilityForItem(it);
+    if (d && d.eligible === false) {
+      picked = { code: d.code, item: it, decision: d };
+      break;
+    }
+  }
+  if (!picked) {
+    const code = blockedCodeFromMessage(fallbackMessage);
+    if (!code) return false;
+    picked = { code, item: items[0] || null, decision: null };
+  }
+  const help = blockedReturnHelp(picked.code, order, picked.item, picked.decision);
+  const cancelItems = help.canCancel
+    ? items.filter((it) => {
+        const d = eligibilityForItem(it);
+        return !d || d.code === 'not_delivered';
+      })
+    : [];
+  state.lastBlock = { code: picked.code, order, items: cancelItems.length ? cancelItems : [picked.item], help };
+  appendChatMessage('bot', help.text, help.canCancel ? cancelActionHtml(order, cancelItems) : '');
+  if (help.appeal) {
+    renderPostDecisionActionButtons({ decision: 'DECLINED', flags: [], needs_human: false });
+  }
+  return true;
+}
+
+async function handleCancelItemsClick(btn) {
+  const order = state.orders.find((o) => o.id === btn.getAttribute('data-cancel-order-id'));
+  let items = [];
+  try {
+    items = JSON.parse(btn.getAttribute('data-cancel-items') || '[]');
+  } catch (_) {}
+  if (!order || !items.length || !Backend?.cancelOrderItems) return;
+  const orderNum = order.order_number || order.order_code;
+  const lines = (order.order_items || order.items || []).filter((it) =>
+    items.some((x) => x.order_item_id === it.id)
+  );
+  const names = lines.map((it) => `${activeQty(it)}× ${it.product_name || it.name}`).join(', ');
+  const confirmed = window.confirm(
+    `Cancel ${names} from order ${orderNum}?\n\nIt will not be shipped and the amount comes off your order.`
+  );
+  if (!confirmed) return;
+
+  btn.disabled = true;
+  const reason = document.getElementById('refund-reason')?.value.trim() || null;
+  showChatTypingIndicator();
+  try {
+    const result = await Backend.cancelOrderItems(order.id, items, reason);
+    removeChatTypingIndicator();
+    document.querySelectorAll('[data-cancel-items]').forEach((b) => {
+      if (b === btn || items.some((x) => (b.getAttribute('data-cancel-items') || '').includes(x.order_item_id))) b.remove();
+    });
+    state.lastBlock = null;
+    const done = (result?.cancelled || [])
+      .map((c) => `${c.quantity}× ${c.product_name}`)
+      .join(', ');
+    const whole = result?.order_status === 'cancelled';
+    appendChatMessage(
+      'bot',
+      `Done. ${done || names} ${whole ? 'and the whole order are' : 'is'} cancelled and will not be shipped. ` +
+        `Order ${orderNum} total: ${formatCurrency(result?.new_total)} (was ${formatCurrency(result?.old_total)}). ` +
+        'We have emailed you a confirmation, and any payment for the cancelled item goes back to your original payment method.' +
+        (whole ? '' : ' The rest of your order will still be shipped.')
+    );
+    state.orders = await Backend.fetchOrdersWithItems();
+    if (Backend.fetchReturnEligibility) {
+      try {
+        state.eligibility = await Backend.fetchReturnEligibility(1);
+      } catch (_) {}
+    }
+    state.activeRefundOrder =
+      state.orders.find((o) => o.id === order.id) || state.activeRefundOrder;
+    renderOrdersPage();
+    showToast(`Cancelled ${done || names} on ${orderNum}.`);
+  } catch (err) {
+    removeChatTypingIndicator();
+    btn.disabled = false;
+    appendChatMessage('bot', err?.message || 'Could not cancel the item. Tap "Talk to a person" and we will help.');
+  }
 }
 
 async function syncWithSupabase() {
@@ -627,19 +804,22 @@ async function handleCancelOrder(orderNumber) {
   if (!order) return;
 
   const confirmed = window.confirm(
-    `Cancel Order ${orderNumber}?\n\nThis updates public.orders.status to 'cancelled'.`
+    `Cancel order ${orderNumber}?\n\nNothing on it will be shipped. We will email you a confirmation.`
   );
   if (!confirmed) return;
 
-  if (Backend) {
-    await Backend.cancelOrderInBackend(orderNumber);
-    state.orders = await Backend.fetchOrdersWithItems();
-  } else {
-    order.status = 'cancelled';
+  try {
+    if (Backend) {
+      await Backend.cancelOrderInBackend(orderNumber);
+      state.orders = await Backend.fetchOrdersWithItems();
+    } else {
+      order.status = 'cancelled';
+    }
+    renderOrdersPage();
+    showToast(`Order ${orderNumber} has been cancelled.`);
+  } catch (err) {
+    showToast(err?.message || `Could not cancel order ${orderNumber}.`);
   }
-
-  renderOrdersPage();
-  showToast(`Order ${orderNumber} has been cancelled.`);
 }
 
 // ============================================================================
@@ -778,6 +958,7 @@ function openRefundModal(orderNumber) {
   state.activeAdjudication = null;
   state.activeReturnRecord = null;
   state.chatTranscript = [];
+  state.lastBlock = null;
 
   const orderNum = order.order_number || order.order_code;
   const paymentMethod = order.payment_method || 'Credit Card';
@@ -809,7 +990,7 @@ function openRefundModal(orderNumber) {
     .map((item, idx) => {
       const itemName = item.product_name || item.name || 'Item';
       const sku = item.sku || `SKU-${idx + 1}`;
-      const qty = Number(item.quantity || 1);
+      const qty = activeQty(item);
       const unitPrice = Number(item.unit_price ?? item.price ?? 0);
       const lineTotal = unitPrice * qty;
       const decision = eligibilityForItem(item);
@@ -861,6 +1042,15 @@ function openRefundModal(orderNumber) {
     'bot',
     `Hello! Welcome to ${BUSINESS_PROFILE.name}. Choose an item and a reason, then submit the return. It stays submitted until our team reviews it.\n\nPolicy: "${BUSINESS_PROFILE.policies.refund}"`
   );
+
+  // Not delivered yet: say so up front and offer the next step.
+  const rawStatus = String(order.status || '').toLowerCase();
+  if (!existingReturn && (rawStatus === 'pending' || rawStatus === 'shipped')) {
+    const openItems = items.filter((it) => activeQty(it) > 0);
+    const help = blockedReturnHelp('not_delivered', order, openItems.length === 1 ? openItems[0] : null, null);
+    state.lastBlock = { code: 'not_delivered', order, items: openItems, help };
+    appendChatMessage('bot', help.text, help.canCancel ? cancelActionHtml(order, openItems, true) : '');
+  }
 
   if (existingReturn) {
     state.activeReturnRecord = existingReturn;
@@ -927,6 +1117,23 @@ async function handleChatInputSubmit(event) {
 
   const engineRes = ReplyEngineJS.handle({ message }, BUSINESS_PROFILE);
   const fl = Array.isArray(engineRes.flags) ? engineRes.flags : [];
+
+  // After a blocked return, answer about that block instead of repeating the policy.
+  const offTopic = ['hours', 'location', 'contact', 'price', 'greeting', 'thanks'];
+  if (state.lastBlock && !offTopic.includes(engineRes.intent) && !engineRes.needs_human) {
+    const block = state.lastBlock;
+    const help = blockedReturnHelp(block.code, block.order, block.items.length === 1 ? block.items[0] : null, block.items[0] ? eligibilityForItem(block.items[0]) : null);
+    const blockStatus = String(block.order?.status || '').toLowerCase();
+    const lead =
+      block.code === 'not_delivered' && blockStatus === 'pending'
+        ? 'It means we have not sent your parcel yet, and a return (with its refund) is only for items you have received. '
+        : block.code === 'not_delivered' && blockStatus === 'shipped'
+          ? 'It means your parcel is with the courier and has not reached you yet. '
+          : '';
+    appendChatMessage('bot', lead + help.text, help.canCancel ? cancelActionHtml(block.order, block.items, true) : '');
+    if (help.appeal) renderPostDecisionActionButtons({ decision: 'DECLINED', flags: [], needs_human: false });
+    return;
+  }
 
   const diagHtml =
     fl.length > 0
@@ -1098,7 +1305,9 @@ async function handleRefundSubmit(event) {
     const message = err?.message || 'Could not submit the return.';
     alertEl.textContent = message;
     alertEl.hidden = false;
-    appendChatMessage('bot', message);
+    if (!explainBlockedReturn(order, selectedItems, message)) {
+      appendChatMessage('bot', message);
+    }
   } finally {
     submitBtn.disabled = false;
     spinner.hidden = true;
@@ -1400,6 +1609,12 @@ function initOrdersPage() {
   document.getElementById('refresh-orders-btn')?.addEventListener('click', async () => {
     await syncWithSupabase();
     showToast('Orders synced with Supabase & local seed data');
+  });
+
+  // "Cancel this item instead" inside the return chat
+  document.getElementById('ai-chat-stream')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cancel-items]');
+    if (btn && !btn.disabled) handleCancelItemsClick(btn);
   });
 
   // Delegated Clicks inside Orders List

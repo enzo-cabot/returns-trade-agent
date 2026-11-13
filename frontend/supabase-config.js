@@ -1295,7 +1295,34 @@ async function createOrderWithItems({
   return newOrder;
 }
 
+/**
+ * Cancels items on an order that has not shipped yet (public.cancel_order_items).
+ * items: [{ order_item_id, quantity }] or null for everything left on the order.
+ * The database checks ownership and status, recomputes the total, and queues
+ * the customer and owner emails.
+ */
+async function cancelOrderItems(orderId, items = null, reason = null) {
+  if (!supabaseClient) throw new Error('Sign in to cancel an order.');
+  const { data, error } = await supabaseClient.rpc('cancel_order_items', {
+    p_order_id: orderId,
+    p_items: items,
+    p_reason: reason,
+  });
+  if (error) throw new Error(friendlyDbMessage(error));
+  return data;
+}
+
 async function cancelOrderInBackend(orderNumber) {
+  if (supabaseClient) {
+    const { data: row, error } = await supabaseClient
+      .from('orders')
+      .select('id')
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+    if (error) throw new Error(friendlyDbMessage(error));
+    if (row?.id) return cancelOrderItems(row.id, null, 'Cancelled from the orders page');
+  }
+
   const seeded = ensureSeededDatabase();
   const target = seeded.orders.find(
     (o) => (o.order_number || o.order_code) === orderNumber
@@ -1305,17 +1332,6 @@ async function cancelOrderInBackend(orderNumber) {
     target.display_status = 'Cancelled';
     target.updated_at = new Date().toISOString();
     saveJson(STORAGE_KEYS.ORDERS, seeded.orders);
-  }
-
-  if (supabaseClient) {
-    try {
-      await supabaseClient
-        .from('orders')
-        .update({ status: 'cancelled' })
-        .eq('order_number', orderNumber);
-    } catch (err) {
-      console.warn('[RefundBackend] Cancel order fallback:', err);
-    }
   }
   return target;
 }
@@ -1663,6 +1679,7 @@ window.RefundBackend = {
   fetchOrdersWithItems,
   createOrderWithItems,
   cancelOrderInBackend,
+  cancelOrderItems,
   createReturnRecords,
   createContactEscalation,
   mockCourierTracking,

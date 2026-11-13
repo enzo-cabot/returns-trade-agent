@@ -65,7 +65,77 @@ export function nextSteps(status) {
   }
 }
 
+// Order cancellations (before shipping) share the outbox with returns.
+export function isCancellation(note) {
+  return note && note.kind === "order_cancellation";
+}
+
+function money(amount) {
+  if (amount === null || amount === undefined || amount === "") return null;
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return null;
+  return `R${n.toFixed(2)}`;
+}
+
+export function cancellationCustomerEmail(note, brand) {
+  const name = note.customer_name ? ` ${note.customer_name}` : "";
+  const amount = money(note.amount);
+  const text = [
+    `Hi${name},`,
+    "",
+    "Status: Cancelled before shipping",
+    `Order: ${note.order_number || ""}`,
+    `Item: ${note.quantity ?? 1} x ${note.product_name || "Item"}`,
+    amount ? `Amount: ${amount}` : null,
+    note.reason ? `Reason: ${note.reason}` : null,
+    `Reference: ${note.cancellation_id || note.id || ""}`,
+    "",
+    "This item will not be shipped. If you already paid for it, the amount goes back to your original payment method. Anything else on your order is not affected.",
+    "",
+    brand,
+  ].filter((line) => line !== null).join("\n");
+  return {
+    to: note.customer_email,
+    subject: note.order_number
+      ? `Your item was cancelled (order ${note.order_number})`
+      : "Your item was cancelled",
+    text,
+  };
+}
+
+export function cancellationOwnerEmail(note, brand) {
+  const amount = money(note.amount);
+  const text = [
+    `Cancelled before shipping by ${note.customer_email}.`,
+    `Order: ${note.order_number || ""}`,
+    `Item: ${note.quantity ?? 1} x ${note.product_name || "Item"}`,
+    amount ? `Amount: ${amount}` : null,
+    note.reason ? `Reason: ${note.reason}` : null,
+    `Reference: ${note.cancellation_id || note.id || ""}`,
+    "Do not pack or ship this item. Refund any payment already taken.",
+    "",
+    brand,
+  ].filter((line) => line !== null).join("\n");
+  return {
+    subject: note.order_number ? `Item cancelled before shipping — ${note.order_number}` : "Item cancelled before shipping",
+    text,
+  };
+}
+
+export function cancellationSlackText(note) {
+  const amount = money(note.amount);
+  return [
+    `*Item cancelled before shipping — ${note.order_number || ""}*`,
+    `*Customer:* ${note.customer_name || ""} <${note.customer_email}>`,
+    `*Item:* ${note.quantity ?? 1} x ${note.product_name || "Item"}`,
+    amount ? `*Amount:* ${amount}` : null,
+    note.reason ? `*Reason:* ${note.reason}` : null,
+    `*Reference:* \`${note.cancellation_id || note.id || ""}\``,
+  ].filter(Boolean).join("\n");
+}
+
 export function customerEmail(note, brand) {
+  if (isCancellation(note)) return cancellationCustomerEmail(note, brand);
   const name = note.customer_name ? ` ${note.customer_name}` : "";
   const item = note.product_name || "Item";
   const qty = note.quantity ?? 1;
@@ -92,6 +162,7 @@ export function customerEmail(note, brand) {
 }
 
 export function ownerEmail(note, brand) {
+  if (isCancellation(note)) return cancellationOwnerEmail(note, brand);
   const text = [
     `${statusLabel(note.new_status)}: return for ${note.customer_email}.`,
     `Order: ${note.order_number || ""}`,
@@ -109,6 +180,7 @@ export function ownerEmail(note, brand) {
 }
 
 export function slackText(note) {
+  if (isCancellation(note)) return cancellationSlackText(note);
   return [
     `*${ownerSubject(note.new_status, note.order_number)}*`,
     `*Customer:* ${note.customer_name || ""} <${note.customer_email}>`,
